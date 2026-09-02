@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export default function FontSize(
   {
-    value = "",
+    value = 16,
     onChange,
     items = [],
     placeholder = "Select...",
@@ -16,9 +16,9 @@ export default function FontSize(
     withIconCheck = false,
     truncateSelection = false
   }: {
-    value: string | null | boolean | number,
+    value: number | string,
     onChange: Function,
-    items: (string | number | Record<string, any>)[],
+    items: (number | string)[],
     placeholder?: string,
     className?: string,
     renderStyle?: string | null,
@@ -27,8 +27,7 @@ export default function FontSize(
     truncateSelection?: boolean
   }) {
   const [isOpen, setIsOpen] = useState(false);
-  const selected = typeof items[0] === "string" ? items[0] : (typeof items[0] === "object" ? items[0]?.value : null) || null;
-  const [selectedItem, setSelectedItem] = useState<string | null | boolean | number>(selected);
+  const [selectedItem, setSelectedItem] = useState<number | string>(items[0]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { setSelectedItem(value) }, [value]);
@@ -84,16 +83,15 @@ export default function FontSize(
       {isOpen && (
         <div className="absolute left-0 z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded shadow-lg">
           <ul className="max-h-60 overflow-y-auto overflow-x-hidden">
-            {items.map((item: string | number | Record<string, any>) => {
-              const isSelected = typeof item === "string" || typeof item === "number" ? item === selectedItem : item.value === selectedItem;
-              const currentItem = typeof item === "string" || typeof item === "number" ? item : item.value;
-              const style = renderStyle ? { [renderStyle]: currentItem } : {};
+            {items.map((item: number | string) => {
+              const isSelected = item === selectedItem
+              const style = renderStyle ? { [renderStyle]: item } : {};
 
               return (
                 <li
-                  key={typeof item === "string" || typeof item === "number" ? item : item.value}
+                  key={item}
                   onClick={() => {
-                    setSelectedItem(typeof item === "string" || typeof item === "number" ? item : item.value);
+                    setSelectedItem(item);
                     onChange(item);
                     setIsOpen(false);
                   }}
@@ -104,7 +102,7 @@ export default function FontSize(
                   }`}
                   style={style}
                 >
-                  <span className="truncate">{typeof item === "string" || typeof item === "number" ? item : item.label}</span>
+                  <span>{item}</span>
                   {isSelected && withIconCheck && (
                     <svg className="w-3 h-3 ml-2 shrink-0 text-zinc-600 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />

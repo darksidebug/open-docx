@@ -27,11 +27,28 @@ export default function Dropdown(
     truncateSelection?: boolean
   }) {
   const [isOpen, setIsOpen] = useState(false);
-  const selected = typeof items[0] === "string" ? items[0] : (typeof items[0] === "object" ? items[0]?.value : null) || null;
-  const [selectedItem, setSelectedItem] = useState<string | null | boolean | number>(selected);
+  const [selectedItem, setSelectedItem] = useState<string | null | boolean | number>(0);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => { setSelectedItem(value) }, [value]);
+  useEffect(() => {
+    const selected = items.find((item: string | number | Record<string, any>) => {
+      if (typeof item === 'string' || typeof item === 'number') {
+        return item === value;
+      }
+
+      if (typeof item.value === 'number') {
+        return item.value === Number(value);
+      }
+
+      return item.value === value;
+    });
+
+    const cleanedSelected = (typeof selected === "string" || typeof selected === "number")
+      ? selected
+      : (selected as Record<string, any>)?.label || null;
+
+    setSelectedItem(cleanedSelected);
+  }, [value]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,7 +90,7 @@ export default function Dropdown(
         <div className="absolute left-0 z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded shadow-lg">
           <ul className="max-h-60 overflow-y-auto overflow-x-hidden">
             {items.map((item: string | number | Record<string, any>) => {
-              const isSelected = typeof item === "string" || typeof item === "number" ? item === selectedItem : item.value === selectedItem;
+              const isSelected = typeof item === "string" || typeof item === "number" ? item === selectedItem : item.label === selectedItem;
               const currentItem = typeof item === "string" || typeof item === "number" ? item : item.value;
               const style = renderStyle ? { [renderStyle]: currentItem } : {};
 
@@ -81,7 +98,7 @@ export default function Dropdown(
                 <li
                   key={typeof item === "string" || typeof item === "number" ? item : item.value}
                   onClick={() => {
-                    setSelectedItem(typeof item === "string" || typeof item === "number" ? item : item.value);
+                    setSelectedItem(typeof item === "string" || typeof item === "number" ? item : item.label);
                     onChange(item);
                     setIsOpen(false);
                   }}
