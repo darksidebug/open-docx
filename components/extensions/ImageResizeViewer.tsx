@@ -75,7 +75,7 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
             type="button"
             onClick={() => updateAttributes({ alignment: "left" })}
             className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 ${
-              alignment === "left" ? "text-blue-500" : "text-zinc-600 dark:text-zinc-300"
+              alignment === "left" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
             }`}
             title="Align Left"
           >
@@ -86,7 +86,7 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
             type="button"
             onClick={() => updateAttributes({ alignment: "center" })}
             className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 ${
-              alignment === "center" ? "text-blue-500" : "text-zinc-600 dark:text-zinc-300"
+              alignment === "center" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
             }`}
             title="Align Center"
           >
@@ -97,7 +97,7 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
             type="button"
             onClick={() => updateAttributes({ alignment: "right" })}
             className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 ${
-              alignment === "right" ? "text-blue-500" : "text-zinc-600 dark:text-zinc-300"
+              alignment === "right" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
             }`}
             title="Align Right"
           >
@@ -109,7 +109,7 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={deleteNode}
-            className="p-1.5 rounded hover:bg-red-50 text-red-500 dark:hover:bg-red-950/30"
+            className="p-1.5 rounded hover:bg-red-500 text-red-500 hover:text-white dark:hover:bg-red-950/30"
             title="Delete Image"
           >
             <Trash2 className="w-4 h-4" />

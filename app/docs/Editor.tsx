@@ -1,18 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image'
-import ImageResize from 'tiptap-extension-resize-image'
 import { CustomImageExtension } from '@/lib/extensions/image-resize'
+import { FontFamily, TextStyle, FontSize } from '@tiptap/extension-text-style';
+import { CustomTableCell, CustomTableHeader } from '@/lib/extensions/custom-table-cell';
 import { useEditorStore } from '@/store/useEditorStore';
+import Highlight from '@tiptap/extension-highlight'
+import Color from '@tiptap/extension-color'
+import Superscript from '@tiptap/extension-superscript'
+import Subscript from '@tiptap/extension-subscript'
+import TextAlign from '@tiptap/extension-text-align'
+import TableBubbleMenu from '@/components/extensions/TableBubbleMenu';
 
 const Editor = () => {
   const { setEditor } = useEditorStore();
-  
+  const containerRef = useRef<HTMLDivElement>(null)
+
   const editor = useEditor({
     onCreate({ editor }) {
       setEditor(editor);
@@ -41,20 +48,22 @@ const Editor = () => {
     editorProps: {
       attributes: {
         style: 'padding-left: 56px; padding-right: 56px;',
-        class: 'focus:outline-none print:border-0 bg-white rounded-sm border border-[#C7C7C7] flex flex-col min-h-[1054px] w-[816px] pt-10 pr-14 pb-10 cursor-text',
+        class: 'focus:outline-none print:border-0 bg-white rounded-sm border border-gray-200 flex flex-col min-h-[1054px] w-[816px] pt-10 pr-14 pb-10 cursor-text',
       }
     },
     extensions: [
       StarterKit,
-      // Image,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      Superscript,
+      Subscript,
+      Highlight.configure({ multicolor: true }),
+      FontFamily,
+      TextStyle,
+      Color,
+      FontSize,
       CustomImageExtension,
-      // ImageResize.configure({
-      //   inline: true,
-      //   icons: {
-      //     alignLeft: '<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>',
-      //     alignCenter: '<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>',
-      //   },
-      // }),
       TaskList,
       TaskItem.configure({
         nested: true,
@@ -62,30 +71,18 @@ const Editor = () => {
       TableKit.configure({
         table: { resizable: true },
       }),
+      CustomTableCell,
+      CustomTableHeader
     ],
-    content: `
-        <table>
-          <tbody>
-            <tr>
-              <th>Name</th>
-              <th colspan="3">Description</th>
-            </tr>
-            <tr>
-              <td>Cyndi Lauper</td>
-              <td>Singer</td>
-              <td>Songwriter</td>
-              <td>Actress</td>
-            </tr>
-          </tbody>
-        </table>
-      `,
+    content: '',
     // Don't render immediately on the server to avoid SSR issues
     immediatelyRender: false,
   })
 
   return (
     <div className="h-screen size-full overflow-x-auto bg-[#F9FBFD] px-4 print:p-0 print:bg-white print:overflow-auto">
-      <div className="mx-auto min-w-max flex justify-center w-204 py-4 print:py-0 print:w-full print:min-w-0">
+      <div ref={containerRef} className="mx-auto min-w-max flex justify-center w-204 py-4 print:py-0 print:w-full print:min-w-0">
+        <TableBubbleMenu editor={editor!} containerRef={containerRef} />
         <EditorContent editor={editor} />
       </div>
     </div>

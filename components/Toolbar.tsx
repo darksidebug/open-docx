@@ -37,17 +37,35 @@ import {
   Image as ImageIcon,
   Table as TableIcon,
   CheckSquare,
+  Redo2,
+  Undo2
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
+import Dropdown from './ui/customs/Dropdown';
+import FontFamily from './ui/toolbars/FontFamily';
 
-interface ToolbarProps {
-  editor: Editor | null;
-}
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 36, 48, 72, 96];
 
-const FONT_SIZES = ['8px', '9px', '10px', '11px', '12px', '14px', '16px', '18px', '20px', '22px', '24px', '26px', '28px', '30px', '36px', '48px', '72px', '96px'];
-const FONT_FAMILIES = ['Arial', 'Calibri', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Inter'];
+const TYPOGRAPHIES = [
+  {
+    label: 'Heading 1',
+    value: 1
+  },
+  {
+    label: 'Heading 2',
+    value: 2
+  },
+  {
+    label: 'Heading 3',
+    value: 3
+  },
+  {
+    label: 'Paragraph',
+    value: 0
+  }
+];
 
-const Toolbar: React.FC<ToolbarProps> = () => {
+const Toolbar = () => {
   const { editor } = useEditorStore();
 
   if (!editor) {
@@ -114,7 +132,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-zinc-50 dark:bg-zinc-900 rounded-lg mt-2 mx-4 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 text-sm overflow-x-auto">
+    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-gray-100 dark:bg-zinc-900 rounded-lg mt-2 mx-4 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 text-sm">
       {/* SECTION 1: Clipboard & Format Painter */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5">
@@ -133,6 +151,14 @@ const Toolbar: React.FC<ToolbarProps> = () => {
             title="Cut (Ctrl+X)"
           >
             <Scissors className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => document.execCommand('copy')}
+            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            title="Undo"
+          >
+            <Undo2 className="w-4 h-4" />
           </button>
         </div>
         <div className="flex items-center gap-1.5">
@@ -154,40 +180,35 @@ const Toolbar: React.FC<ToolbarProps> = () => {
           >
             <Paintbrush className="w-4 h-4" />
           </button>
+          <button
+            type="button"
+            onClick={() => document.execCommand('copy')}
+            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            title="Redo"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      <div className="w-[1px] h-14 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+      <div className="w-px h-14.5 relative -top-px mx-2 bg-zinc-200 dark:bg-zinc-700" />
 
       {/* SECTION 2: Typography, Size & Styles */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1">
           {/* Font Family */}
-          <select
-            onChange={(e) => editor?.chain()?.focus()?.setFontFamily(e.target.value)?.run()}
-            className="h-6 text-xs border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 px-1 focus:outline-none"
-            title="Font Family"
-          >
-            {FONT_FAMILIES.map((font) => (
-              <option key={font} value={font}>
-                {font}
-              </option>
-            ))}
-          </select>
+          <FontFamily />
 
           {/* Font Size */}
-          <select
-            value={editor?.getAttributes('textStyle')?.fontSize || '16px'}
-            onChange={(e) => editor?.chain()?.focus()?.setFontSize(e.target.value)?.run()}
-            className="h-6 text-xs border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 px-1 focus:outline-none"
-            title="Font Size"
-          >
-            {FONT_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size.replace('px', '')}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            value={editor?.getAttributes('textStyle')?.fontSize || FONT_SIZES[0]}
+            onChange={(size: string) => {
+              editor?.chain()?.focus()?.setFontSize(size)?.run()
+            }}
+            items={FONT_SIZES}
+            className='w-11'
+            title='Font Size'
+          />
 
           {/* Step Size Buttons */}
           <button
@@ -212,12 +233,12 @@ const Toolbar: React.FC<ToolbarProps> = () => {
             <button type="button" className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Change Case">
               <CaseSensitive className="w-4 h-4" />
             </button>
-            <div className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg py-1 z-20 min-w-[130px]">
-              <button type="button" onClick={() => applyCaseChange('sentence')} className="px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700">Sentence case</button>
-              <button type="button" onClick={() => applyCaseChange('lowercase')} className="px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700">lowercase</button>
-              <button type="button" onClick={() => applyCaseChange('uppercase')} className="px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700">UPPERCASE</button>
-              <button type="button" onClick={() => applyCaseChange('capitalize')} className="px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700">Capitalize Words</button>
-              <button type="button" onClick={() => applyCaseChange('toggle')} className="px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700">tOGGLE cASE</button>
+            <div className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 min-w-32.5 overflow-hidden">
+              <button type="button" onClick={() => applyCaseChange('sentence')} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Sentence case</button>
+              <button type="button" onClick={() => applyCaseChange('lowercase')} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">lowercase</button>
+              <button type="button" onClick={() => applyCaseChange('uppercase')} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">UPPERCASE</button>
+              <button type="button" onClick={() => applyCaseChange('capitalize')} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Capitalize Words</button>
+              <button type="button" onClick={() => applyCaseChange('toggle')} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">tOGGLE cASE</button>
             </div>
           </div>
         </div>
@@ -302,7 +323,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
         </div>
       </div>
 
-      <div className="w-[1px] h-14 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+      <div className="w-px h-14.5 relative -top-px mx-2 bg-zinc-200 dark:bg-zinc-700" />
 
       {/* SECTION 3: Lists, Indentation & Alignment */}
       <div className="flex flex-col gap-1.5">
@@ -352,34 +373,34 @@ const Toolbar: React.FC<ToolbarProps> = () => {
             <button type="button" className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Line Spacing">
               <BetweenVerticalStart className="w-4 h-4" />
             </button>
-            <div className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg py-1 z-20 min-w-[100px]">
+            <div className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 min-w-32.5 overflow-hidden">
               {['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((spacing) => (
                 <button
                   key={spacing}
                   type="button"
                   onClick={() => editor?.chain()?.focus()?.run()} // Add custom BetweenVerticalStart extension call here if installed
-                  className="px-3 py-1 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
                 >
                   {spacing}
                 </button>
               ))}
+              <div className="h-px border-t border-zinc-100 dark:border-zinc-700" />
+              <button
+                type="button"
+                onClick={() => editor?.chain()?.focus()?.run()} // Add custom BetweenVerticalStart extension call here if installed
+                className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              >
+                Remove spacing
+              </button>
             </div>
           </div>
-
-          <button
-            type="button"
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Text Direction"
-          >
-            <Pilcrow className="w-4 h-4" />
-          </button>
         </div>
 
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setTextAlign('left')?.run()}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'left' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            className={`py-1 px-[4.5px] rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'left' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Align Left"
           >
             <AlignLeft className="w-4 h-4" />
@@ -387,7 +408,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setTextAlign('center').run()}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'center' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            className={`py-1 px-[4.5px] rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'center' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Align Center"
           >
             <AlignCenter className="w-4 h-4" />
@@ -395,7 +416,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setTextAlign('right')?.run()}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'right' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            className={`py-1 px-[4.5px] rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'right' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Align Right"
           >
             <AlignRight className="w-4 h-4" />
@@ -403,21 +424,21 @@ const Toolbar: React.FC<ToolbarProps> = () => {
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setTextAlign('justify')?.run()}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'justify' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            className={`py-1 px-[4.5px] ml-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive({ textAlign: 'justify' }) ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Justify"
           >
             <AlignJustify className="w-4 h-4" />
           </button>
           <button
             type="button"
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            className="py-1 px-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Shading"
           >
             <PaintBucket className="w-4 h-4" />
           </button>
           <button
             type="button"
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            className="py-1 px-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Borders"
           >
             <Square className="w-4 h-4" />
@@ -425,28 +446,24 @@ const Toolbar: React.FC<ToolbarProps> = () => {
         </div>
       </div>
 
-      <div className="w-[1px] h-14 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+      <div className="w-px h-14.5 relative -top-px mx-2 bg-zinc-200 dark:bg-zinc-700" />
 
       {/* SECTION 4: Headings, Links & Media */}
       <div className="flex flex-col gap-1.5">
-        <select
-          onChange={(e) => {
-            const level = parseInt(e.target.value, 10);
+        <Dropdown
+          value={TYPOGRAPHIES[0].label}
+          onChange={(value: string) => {
+            const level = parseInt(value, 10);
             if (level === 0) {
               editor?.chain()?.focus()?.setParagraph()?.run();
             } else {
               editor?.chain()?.focus()?.toggleHeading({ level: level as any })?.run();
             }
           }}
-          className="h-6 text-xs border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 px-1 focus:outline-none"
+          items={TYPOGRAPHIES}
+          className='w-30'
           title="Styles / Headings"
-        >
-          <option value="0">Normal Text</option>
-          <option value="1">Heading 1</option>
-          <option value="2">Heading 2</option>
-          <option value="3">Heading 3</option>
-          <option value="4">Heading 4</option>
-        </select>
+        />
 
         <div className="flex items-center gap-1.5">
           <button
@@ -472,17 +489,26 @@ const Toolbar: React.FC<ToolbarProps> = () => {
           >
             <ImageIcon className="w-4 h-4" />
           </button>
+
+          <button
+            type="button"
+            onClick={() => editor?.chain()?.focus()?.insertTable({ rows: 3, cols: 3, withHeaderRow: true })?.run()}
+            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 flex items-center gap-1 text-xs"
+            title="Insert Table (3x3)"
+          >
+            <TableIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      <div className="w-[1px] h-14 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+      {/* <div className="w-px h-14.5 relative -top-px mx-2 bg-zinc-200 dark:bg-zinc-700" /> */}
 
       {/* SECTION 5: Tables & Selection */}
-      <div className="flex flex-col gap-1.5">
+      {/* <div className="flex flex-col gap-1.5">
         <button
           type="button"
           onClick={() => editor?.chain()?.focus()?.insertTable({ rows: 3, cols: 3, withHeaderRow: true })?.run()}
-          className="p-1.5.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 flex items-center gap-1 text-xs"
+          className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 flex items-center gap-1 text-xs"
           title="Insert Table (3x3)"
         >
           <TableIcon className="w-4 h-4" />
@@ -496,7 +522,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
         >
           <CheckSquare className="w-4 h-4" />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 };
