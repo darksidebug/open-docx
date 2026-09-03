@@ -3,16 +3,43 @@ import React, { useEffect, useState } from 'react';
 import Dropdown from '../customs/Dropdown';
 
 const FontFamily = () => {
-  const FONT_FAMILIES = ['Arial', 'Calibri', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Inter'];
+  const FONT_FAMILIES = [
+    'Arial',
+    'Calibri',
+    'Courier New',
+    'Georgia',
+    'Google Sans',
+    'Geist Mono',
+    'Geist Sans',
+    'Inter',
+    'Poppins',
+    'Roboto',
+    'Times New Roman',
+    'Verdana'
+  ];
   const { editor } = useEditorStore();
-  const [currentFont, setCurrentFont] = useState(null);
+  const [currentFont, setCurrentFont] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editor) return;
 
     const updateFont = () => {
-      const fontFamily = editor.getAttributes("textStyle")?.fontFamily;
-      setCurrentFont(fontFamily || FONT_FAMILIES[1]);
+      let fontFamily = editor.getAttributes("textStyle")?.fontFamily;
+      let matchedFont = 'Google Sans';
+
+      if (fontFamily) {
+        const fontParts = fontFamily.split(',').map((f: string) => f.trim().replace(/['"]/g, ''));
+
+        const foundFont = fontParts.find((part: string) =>
+          FONT_FAMILIES.some((font) => font.toLowerCase() === part.toLowerCase())
+        );
+
+        if (foundFont) {
+          matchedFont = foundFont;
+        }
+      }
+
+      setCurrentFont(matchedFont || 'Google Sans');
     };
 
     updateFont();
@@ -28,7 +55,7 @@ const FontFamily = () => {
 
   return (
     <Dropdown
-      value={currentFont}
+      value={currentFont || 'Google Sans'}
       onChange={(font: string) => {
         editor?.chain()?.focus()?.setFontFamily(font)?.run()
       }}

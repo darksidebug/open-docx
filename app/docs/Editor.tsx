@@ -15,6 +15,11 @@ import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
 import TextAlign from '@tiptap/extension-text-align'
 import TableBubbleMenu from '@/components/extensions/TableBubbleMenu';
+import CodeBlock from '@tiptap/extension-code-block'
+import { Details, DetailsSummary, DetailsContent } from '@/lib/extensions/details-extension'
+import { Column, ColumnBlock, columnPlaceholderText } from '@/lib/extensions/column-block';
+import { PasteDefaultFont } from '@/lib/extensions/paste-default-font';
+import { Placeholder } from '@tiptap/extensions'
 
 const Editor = () => {
   const { setEditor } = useEditorStore();
@@ -48,7 +53,7 @@ const Editor = () => {
     editorProps: {
       attributes: {
         style: 'padding-left: 56px; padding-right: 56px;',
-        class: 'focus:outline-none print:border-0 bg-white rounded-sm border border-gray-200 flex flex-col min-h-[1054px] w-[816px] pt-10 pr-14 pb-10 cursor-text',
+        class: 'focus:outline-none print:border-0 bg-white rounded-sm border border-gray-200 flex flex-col min-h-[1054px] w-[816px] pt-10 pr-14 pb-10 text-[14px] cursor-text',
       }
     },
     extensions: [
@@ -60,6 +65,10 @@ const Editor = () => {
       Subscript,
       Highlight.configure({ multicolor: true }),
       FontFamily,
+      PasteDefaultFont.configure({
+        fontFamily: 'Google Sans',
+        fontSize: '14px',
+      }),
       TextStyle,
       Color,
       FontSize,
@@ -72,7 +81,33 @@ const Editor = () => {
         table: { resizable: true },
       }),
       CustomTableCell,
-      CustomTableHeader
+      CustomTableHeader,
+      CodeBlock.configure({
+        enableTabIndentation: true,
+      }),
+      Details.configure({
+        persist: true,
+        HTMLAttributes: {
+          class: 'details',
+        },
+      }),
+      DetailsSummary,
+      DetailsContent,
+      Placeholder.configure({
+        includeChildren: true,
+        placeholder: ({ node, pos, editor }) => {
+          if (node?.type?.name === 'detailsSummary') {
+            return 'Summary'
+          }
+
+          const columnText = columnPlaceholderText(node, pos, editor)
+          if (columnText) return columnText
+
+          return '';
+        },
+      }),
+      Column,
+      ColumnBlock,
     ],
     content: '',
     // Don't render immediately on the server to avoid SSR issues

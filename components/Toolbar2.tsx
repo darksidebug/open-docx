@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Editor } from '@tiptap/react';
 import {
   Copy,
@@ -41,7 +41,11 @@ import {
   Undo2,
   PaintRoller,
   Pipette,
-  Trash2
+  Trash2,
+  Code,
+  Quote,
+  ListCollapse,
+  Columns2
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import Dropdown from './ui/customs/Dropdown';
@@ -49,9 +53,21 @@ import FontFamily from './ui/toolbars/FontFamily';
 import Image from 'next/image';
 import FontSize from './ui/toolbars/FontSize';
 import { useDebounce } from '@/hooks/useDebounce';
+// import { Columns2 } from 'lucide-react';
 
 interface ToolbarProps {
   editor: Editor | null;
+}
+
+type ActiveMarks = {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+  code: boolean;
+  fontFamily?: string;
+  textColor?: string;
+  highlightColor?: string;
 }
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 36, 48, 72, 96];
@@ -85,6 +101,7 @@ const TYPOGRAPHIES = [
 
 const Toolbar2 = () => {
   const { editor } = useEditorStore();
+  const [formatBuffer, setFormatBuffer] = useState<ActiveMarks | null>(null);
 
   const handleSetFontSize = useDebounce((size: string) => {
     editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
@@ -93,6 +110,61 @@ const Toolbar2 = () => {
   if (!editor) {
     return null;
   }
+
+  const handleCopyFormat = () => {
+    if (!editor) return;
+
+    const textStyle = editor.getAttributes("textStyle");
+    const highlight = editor.getAttributes("highlight");
+
+    const activeMarks = {
+      bold: editor.isActive("bold"),
+      italic: editor.isActive("italic"),
+      underline: editor.isActive("underline"),
+      strike: editor.isActive("strike"),
+      code: editor.isActive("code"),
+      fontFamily: textStyle?.fontFamily,
+      textColor: textStyle?.color,
+      highlightColor: highlight?.color,
+    };
+    setFormatBuffer(activeMarks);
+  };
+
+  const handlePasteFormat = () => {
+    if (!editor || !formatBuffer) return;
+
+    const { from, to } = editor.state.selection;
+
+    if (from === to) return;
+
+    const chain = editor.chain().focus();
+
+    if (formatBuffer.bold) chain.setBold(); else chain.unsetBold();
+    if (formatBuffer.italic) chain.setItalic(); else chain.unsetItalic();
+    if (formatBuffer.underline) chain.setUnderline(); else chain.unsetUnderline();
+    if (formatBuffer.strike) chain.setStrike(); else chain.unsetStrike();
+
+    if (formatBuffer.fontFamily) {
+      chain.setFontFamily(formatBuffer.fontFamily);
+    } else {
+      chain.unsetFontFamily();
+    }
+
+    if (formatBuffer.textColor) {
+      chain.setColor(formatBuffer.textColor);
+    } else {
+      chain.unsetColor();
+    }
+
+    if (formatBuffer.highlightColor) {
+      chain.setHighlight({ color: formatBuffer.highlightColor });
+    } else {
+      chain.unsetHighlight();
+    }
+
+    chain.run();
+    setFormatBuffer(null);
+  };
 
   // Helper for font size stepping
   const changeFontSizeStep = (delta: number) => {
@@ -165,9 +237,8 @@ const Toolbar2 = () => {
     return 0;
   };
 
-  console.log('object', editor.getAttributes('tableCell').textAlign)
   return (
-    <div className='px-4 mt-2 font-medium'>
+    <div className='px-4 mt-2'>
       <div className='flex items-center'>
         <div className='h-12 w-12'>
           <Image
@@ -178,8 +249,8 @@ const Toolbar2 = () => {
           />
         </div>
         <div className=''>
-          <div className="ml-2 text-lg font-bold">Untitled document</div>
-          <div className="flex items-center gap-0.5 text-[13px] font-medium">
+          <div className="ml-2 text-lg">Untitled document</div>
+          <div className="flex items-center gap-0.5 text-[13px]">
             <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>File</button>
             <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>Edit</button>
             <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>View</button>
@@ -189,7 +260,7 @@ const Toolbar2 = () => {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between bg-[#f0f4f9] dark:bg-zinc-900 rounded-lg mt-2 border border-[#f0f4f8] dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 font-medium">
+      <div className="flex items-center justify-between bg-[#f0f4f9] dark:bg-zinc-900 rounded-lg mt-2 border border-[#f0f4f8] dark:border-zinc-800 text-zinc-700 dark:text-zinc-200">
         <div className="flex flex-wrap items-center gap-1 p-1.5 ">
           <button
             type="button"
@@ -197,7 +268,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Copy (Ctrl+C)"
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="size-4" />
           </button>
           <button
             type="button"
@@ -205,7 +276,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Cut (Ctrl+X)"
           >
-            <Scissors className="w-4 h-4" />
+            <Scissors className="size-4" />
           </button>
 
           <button
@@ -217,7 +288,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Paste (Ctrl+V)"
           >
-            <Clipboard className="w-4 h-4" />
+            <Clipboard className="size-4" />
           </button>
 
           <div className="w-px h-5 relative mx-1 bg-[#c4c7c5] dark:bg-zinc-700" />
@@ -229,7 +300,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Undo"
           >
-            <Undo2 className="w-4 h-4" />
+            <Undo2 className="size-4" />
           </button>
           <button
             type="button"
@@ -237,7 +308,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Redo"
           >
-            <Redo2 className="w-4 h-4" />
+            <Redo2 className="size-4" />
           </button>
 
           <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" />
@@ -245,7 +316,7 @@ const Toolbar2 = () => {
           <FontFamily />
 
           <FontSize
-            value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || FONT_SIZES[0]}
+            value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '14'}
             onChange={handleSetFontSize}
             items={FONT_SIZES}
             className='w-12'
@@ -261,7 +332,10 @@ const Toolbar2 = () => {
               if (level === 0) {
                 editor?.chain()?.focus()?.setParagraph()?.run();
               } else {
-                editor?.chain()?.focus()?.toggleHeading({ level: level as any })?.run();
+                editor?.chain()?.focus()?.unsetAllMarks()?.run();
+                editor?.chain()?.focus()
+                  ?.toggleHeading({ level: level as any })
+                  ?.run();
               }
             }}
             items={TYPOGRAPHIES}
@@ -275,7 +349,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Increase Font Size"
           >
-            <AArrowUp className="w-4 h-4" />
+            <AArrowUp className="size-4" />
           </button>
           <button
             type="button"
@@ -283,7 +357,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Decrease Font Size"
           >
-            <AArrowDown className="w-4 h-4" />
+            <AArrowDown className="size-4" />
           </button>
 
           <div className="relative group">
@@ -307,7 +381,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive('bold') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Bold (Ctrl+B)"
           >
-            <Bold className="w-4 h-4" />
+            <Bold className="size-4" />
           </button>
           <button
             type="button"
@@ -315,7 +389,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive('italic') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Italic (Ctrl+I)"
           >
-            <Italic className="w-4 h-4" />
+            <Italic className="size-4" />
           </button>
           <button
             type="button"
@@ -323,7 +397,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('underline') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Underline (Ctrl+U)"
           >
-            <Underline className="w-4 h-4" />
+            <Underline className="size-4" />
           </button>
           <button
             type="button"
@@ -331,7 +405,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('strike') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Strikethrough"
           >
-            <Strikethrough className="w-4 h-4" />
+            <Strikethrough className="size-4" />
           </button>
           <button
             type="button"
@@ -341,7 +415,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive('superscript') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Superscript"
           >
-            <Superscript className="w-4 h-4" />
+            <Superscript className="size-4" />
           </button>
           <button
             type="button"
@@ -349,35 +423,35 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive('subscript') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Subscript"
           >
-            <Subscript className="w-4 h-4" />
+            <Subscript className="size-4" />
           </button>
 
           <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" />
 
           <button
             type="button"
-            className="py-1 px-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Shading"
+            onClick={handleCopyFormat}
+            className={`p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
+              formatBuffer ? "bg-zinc-200 dark:bg-zinc-800 text-blue-500" : ""
+            }`}
+            title="Format Painter"
           >
-            <PaintBucket className="w-4 h-4" />
+            <Pipette className="size-4" />
           </button>
 
           <button
             type="button"
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Format Painter"
-          >
-            <Pipette className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            onClick={handlePasteFormat}
+            disabled={!formatBuffer}
+            className={`p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
+              !formatBuffer ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+            }`}
             title="Paste Format"
           >
-            <PaintRoller className="w-4 h-4" />
+            <PaintRoller className="size-4" />
           </button>
           <label className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Highlight Color">
-            <Highlighter className="w-4 h-4" />
+            <Highlighter className="size-4" />
             <input
               type="color"
               className="sr-only"
@@ -385,7 +459,7 @@ const Toolbar2 = () => {
             />
           </label>
           <label className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Font Color">
-            <Baseline className="w-4 h-4" />
+            <Baseline className="size-4" />
             <input
               type="color"
               className="sr-only"
@@ -401,7 +475,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Bullet List"
           >
-            <List className="w-4 h-4" />
+            <List className="size-4" />
           </button>
           <button
             type="button"
@@ -409,7 +483,7 @@ const Toolbar2 = () => {
             className={`py-1 px-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Numbered List"
           >
-            <ListOrdered className="w-4 h-4" />
+            <ListOrdered className="size-4" />
           </button>
           <button
             type="button"
@@ -417,7 +491,7 @@ const Toolbar2 = () => {
             className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Task List"
           >
-            <ListCheck className="w-4 h-4" />
+            <ListCheck className="size-4" />
           </button>
           <button
             type="button"
@@ -425,7 +499,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Increase Indent"
           >
-            <IndentIncrease className="w-4 h-4" />
+            <IndentIncrease className="size-4" />
           </button>
           <button
             type="button"
@@ -433,14 +507,14 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Decrease Indent"
           >
-            <IndentDecrease className="w-4 h-4" />
+            <IndentDecrease className="size-4" />
           </button>
 
-          <div className="relative group font-medium">
+          <div className="relative group">
             <button type="button" className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Line Spacing">
               <BetweenVerticalStart className="w-4 h-4 rotate-90" />
             </button>
-            <div className="absolute left-0 top-full min-w-37.5 text-[13px] font-medium hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 overflow-hidden">
+            <div className="absolute left-0 top-full min-w-37.5 text-[13px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 overflow-hidden">
               {['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((spacing) => (
                 <button
                   key={spacing}
@@ -475,7 +549,7 @@ const Toolbar2 = () => {
             }`}
             title="Align Left"
           >
-            <AlignLeft className="w-4 h-4" />
+            <AlignLeft className="size-4" />
           </button>
           <button
             type="button"
@@ -487,34 +561,68 @@ const Toolbar2 = () => {
             }`}
             title="Align Center"
           >
-            <AlignCenter className="w-4 h-4" />
+            <AlignCenter className="size-4" />
           </button>
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setTextAlign('right')?.run()}
             className={`py-1 px-[4.5px] rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
-              editor.isActive({ textAlign: 'right' }) || editor.getAttributes('tableCell').textAlign === 'right' 
-                ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' 
+              editor.isActive({ textAlign: 'right' }) || editor.getAttributes('tableCell').textAlign === 'right'
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400'
                 : ''
             }`}
             title="Align Right"
           >
-            <AlignRight className="w-4 h-4" />
+            <AlignRight className="size-4" />
           </button>
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setTextAlign('justify')?.run()}
             className={`py-1 px-[4.5px] ml-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
-              editor.isActive({ textAlign: 'justify' }) || editor.getAttributes('tableCell').textAlign === 'justify' 
-                ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' 
+              editor.isActive({ textAlign: 'justify' }) || editor.getAttributes('tableCell').textAlign === 'justify'
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400'
                 : ''
             }`}
             title="Justify"
           >
-            <AlignJustify className="w-4 h-4" />
+            <AlignJustify className="size-4" />
           </button>
 
           <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" />
+
+          <button
+            type="button"
+            onClick={() => editor?.commands?.toggleCodeBlock()}
+            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('codeBlock') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            title="Code Block"
+          >
+            <Code className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.commands?.toggleBlockquote()}
+            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('blockquote') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            title="Blockquote"
+          >
+            <Quote className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain()?.focus()?.setDetails()?.run()}
+            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('details') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            title="Details"
+          >
+            <ListCollapse className="size-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().insertColumns().run()}
+            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('columnBlock') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            title="Two Column Layout"
+          >
+            <Columns2 className="size-4" />
+          </button>
 
           <button
             type="button"
@@ -522,7 +630,7 @@ const Toolbar2 = () => {
             className="px-1.5 py-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 flex items-center gap-1 text-xs"
             title="Insert Table (3x3)"
           >
-            <TableIcon className="w-4 h-4" />
+            <TableIcon className="size-4" />
           </button>
 
           {/* <button
@@ -530,7 +638,7 @@ const Toolbar2 = () => {
             className="py-1 px-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Borders"
           >
-            <Square className="w-4 h-4" />
+            <Square className="size-4" />
           </button>
 
           <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" /> */}
@@ -541,7 +649,7 @@ const Toolbar2 = () => {
             className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('link') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Insert Link"
           >
-            <LinkIcon className="w-4 h-4" />
+            <LinkIcon className="size-4" />
           </button>
           <button
             type="button"
@@ -549,18 +657,18 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Insert Custom Image"
           >
-            <ImageIcon className="w-4 h-4" />
+            <ImageIcon className="size-4" />
           </button>
 
           <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" />
-          
+
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Clear Formatting"
           >
-            <Eraser className="w-4 h-4" />
+            <Eraser className="size-4" />
           </button>
           <button
             type="button"
@@ -568,7 +676,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Clear Content"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="size-4" />
           </button>
 
           {/* <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" />
@@ -578,7 +686,7 @@ const Toolbar2 = () => {
             className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Add Comment"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="size-4" />
           </button> */}
         </div>
         <div className="flex items-center gap-2 px-2 mr-2 text-sm">

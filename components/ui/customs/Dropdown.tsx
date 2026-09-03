@@ -62,6 +62,8 @@ export default function Dropdown(
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const selectedTextStyle = renderStyle ? { [renderStyle]: selectedItem } : {};
+
   return (
     <div
       ref={dropdownRef}
@@ -77,7 +79,10 @@ export default function Dropdown(
         )}
         title={title}
       >
-        <span className={cn(truncateSelection && "truncate" || '')}>
+        <span
+          className={cn(truncateSelection && "truncate" || '')}
+          style={selectedTextStyle}
+        >
           {selectedItem}
         </span>
         <svg className={`relative left-0.5 w-3 h-3 opacity-60 ${isOpen ? 'rotate-180' : ''} transition-transform`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +109,7 @@ export default function Dropdown(
                   }}
                   className={`px-3 py-1.5 text-xs cursor-pointer flex items-center justify-between transition-colors duration-150 text-zinc-800 dark:text-zinc-200 ${
                     isSelected
-                      ? "bg-zinc-200/70 dark:bg-zinc-700 font-medium"
+                      ? "bg-zinc-200/70 dark:bg-zinc-700"
                       : "hover:bg-zinc-100 dark:hover:bg-zinc-700/50"
                   }`}
                   style={style}
