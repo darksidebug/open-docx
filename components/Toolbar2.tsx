@@ -45,7 +45,8 @@ import {
   Code,
   Quote,
   ListCollapse,
-  Columns2
+  Columns2,
+  Minus
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import Dropdown from './ui/customs/Dropdown';
@@ -291,7 +292,7 @@ const Toolbar2 = () => {
             <Clipboard className="size-4" />
           </button>
 
-          <div className="w-px h-5 relative mx-1 bg-[#c4c7c5] dark:bg-zinc-700" />
+          {/* <div className="w-px h-5 relative mx-1 bg-[#c4c7c5] dark:bg-zinc-700" /> */}
 
           {/* TODO: fix the issue on undo - redo */}
           <button
@@ -316,7 +317,7 @@ const Toolbar2 = () => {
           <FontFamily />
 
           <FontSize
-            value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '14'}
+            value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '13'}
             onChange={handleSetFontSize}
             items={FONT_SIZES}
             className='w-12'
@@ -589,10 +590,18 @@ const Toolbar2 = () => {
           </button>
 
           <div className="w-px h-5 relative mx-2 bg-[#c4c7c5] dark:bg-zinc-700" />
-
+            {/* commands?.toggleCodeBlock() */}
           <button
             type="button"
-            onClick={() => editor?.commands?.toggleCodeBlock()}
+            onClick={() => editor.chain()?.focus()?.setHorizontalRule()?.run()}
+            className={`px-1.25 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('horizontalRule') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
+            title="Add Line"
+          >
+            <Minus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain()?.focus()?.toggleCodeBlock()?.run()}
             className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('codeBlock') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Code Block"
           >
@@ -600,7 +609,7 @@ const Toolbar2 = () => {
           </button>
           <button
             type="button"
-            onClick={() => editor?.commands?.toggleBlockquote()}
+            onClick={() => editor?.chain()?.focus()?.toggleBlockquote()?.run()}
             className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('blockquote') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Blockquote"
           >

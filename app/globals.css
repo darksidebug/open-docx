@@ -422,4 +422,15 @@ body {
   .column > *:last-child {
     margin-bottom: 0;
   }
+
+  hr {
+    border: none;
+    border-top: 1px solid #d4dbe5;
+    cursor: pointer;
+    margin: 1rem 0;
+
+    &.ProseMirror-selectednode {
+      border-top: 1px solid #d4dbe5;
+    }
+  }
 }
