@@ -151,8 +151,35 @@ const Toolbar2 = () => {
     }
   };
 
-  const exportToDocx = async () => {
-    await downloadDocx(editor.getJSON(), "document.docx");
+  // const exportToDocx = async () => {
+  //   await downloadDocx(editor.getJSON(), "document.docx");
+  // }
+
+  function exportToDocx(filename = "editor-debug.json") {
+    if (!editor) return;
+    const redact = (value: unknown): unknown => {
+      if (typeof value === "string" && value.length > 150) {
+        return `${value.slice(0, 60)}...[TRUNCATED — full length: ${value.length}]`;
+      }
+      if (Array.isArray(value)) return value.map(redact);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redact(v)])
+        );
+      }
+      return value;
+    };
+
+    const json = redact(editor.getJSON());
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   const handleLinkAdd = () => {
