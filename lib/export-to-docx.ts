@@ -145,6 +145,8 @@ export interface DocxTheme {
   headingSizesPt: { h1: number; h2: number; h3: number; h4: number; h5: number; h6: number };
   /** `h1, h2 { margin: 1rem 0 }` — only h1/h2 have explicit spacing in the source CSS. */
   headingSpacingTwips: { before: number; after: number };
+  /** `.tableWrapper { margin: 1.5rem 0 }` — vertical gap before/after a table. */
+  tableMarginTwips: { before: number; after: number };
 }
 
 const DEFAULT_THEME: DocxTheme = {
@@ -157,6 +159,7 @@ const DEFAULT_THEME: DocxTheme = {
   hrColor: "D4DBE5",
   headingSizesPt: { h1: 16.8, h2: 14.4, h3: 13.2, h4: 12, h5: 12, h6: 12 },
   headingSpacingTwips: { before: 240, after: 240 }, // 1rem = 16px = 12pt = 240 twips
+  tableMarginTwips: { before: 360, after: 360 }, // 1.5rem = 24px = 18pt = 360 twips
 };
 
 const DEFAULT_MARK_ALIASES: Record<string, string> = {
@@ -651,6 +654,19 @@ function marksToRunOptions(marks: TiptapMark[] | undefined, state: ConvertState)
   return opts;
 }
 
+/**
+ * An empty paragraph used purely to fake CSS margin around a table (docx
+ * Tables have no margin property of their own). Its own text run is tiny
+ * (1pt) so its natural line-height barely contributes — nearly all of the
+ * visible gap comes from the explicit before/after spacing.
+ */
+function verticalSpacerParagraph(twips: number, position: "before" | "after"): Paragraph {
+  return new Paragraph({
+    children: [new TextRun({ text: "", size: 2 })],
+    spacing: position === "before" ? { before: twips } : { after: twips },
+  });
+}
+
 function alignmentFromAttrs(attrs: Record<string, any> | undefined): (typeof AlignmentType)[keyof typeof AlignmentType] | undefined {
   const align = attrs?.textAlign;
   switch (align) {
@@ -852,6 +868,8 @@ interface BlockOpts {
   extraIndentTwips?: number;
   /** Nesting depth for collapsible <details> summaries (drives w:outlineLvl). */
   toggleDepth?: number;
+  /** Nesting depth for taskList (drives the ☐/☑ item's indent, no numbering). */
+  taskListDepth?: number;
   /**
    * Default alignment/run styling inherited from an enclosing table cell's
    * per-cell attrs (e.g. a custom TableCell extension's `textAlign`,
@@ -950,7 +968,11 @@ async function convertBlockNode(
       const result: (Paragraph | Table)[] = [];
       const contentNodes = node.content ?? [];
       let firstParagraphConsumed = false;
-      const checked = type === "taskItem" ? Boolean(node.attrs?.checked) : undefined;
+      const isTask = type === "taskItem";
+      const checked = isTask ? Boolean(node.attrs?.checked) : undefined;
+      // Task items get their own ☐/☑ glyph instead of a bullet — no
+      // numbering reference, just indentation matching a normal list level.
+      const taskIndentTwips = isTask ? convertInchesToTwip(0.25 * (opts.taskListDepth ?? 1)) : undefined;
 
       for (const child of contentNodes) {
         if (!firstParagraphConsumed && canonicalNodeType(child.type, state) === "paragraph") {
@@ -961,9 +983,11 @@ async function convertBlockNode(
             new Paragraph({
               children: [...prefix, ...(inlineChildren.length ? inlineChildren : [new TextRun("")])],
               alignment: alignmentFromAttrs(child.attrs),
-              numbering: opts.listContext
-                ? { reference: opts.listContext.reference, level: opts.listContext.level }
-                : undefined,
+              indent: isTask ? { left: taskIndentTwips } : undefined,
+              numbering:
+                !isTask && opts.listContext
+                  ? { reference: opts.listContext.reference, level: opts.listContext.level }
+                  : undefined,
             })
           );
         } else {
@@ -975,11 +999,11 @@ async function convertBlockNode(
     }
 
     case "taskList": {
-      // Treat like a bullet list but items render their own checkbox glyph.
-      const reference = nextNumberingReference(state, "bullet");
-      state.numberingConfigs.push({ reference, levels: buildBulletLevels() });
-      const level = opts.listContext ? opts.listContext.level + 1 : 0;
-      return convertBlocks(node.content, state, { ...opts, listContext: { reference, level } });
+      // Unlike bulletList/orderedList, task items carry their own ☐/☑
+      // glyph as the "marker" — no numbering/bullet is registered here, or
+      // every task item would show a bullet *and* a checkbox.
+      const depth = (opts.taskListDepth ?? 0) + 1;
+      return convertBlocks(node.content, state, { ...opts, taskListDepth: depth });
     }
 
     case "blockquote": {
@@ -1095,7 +1119,15 @@ async function convertBlockNode(
     }
 
     case "table": {
-      return [await convertTable(node, state)];
+      // docx Tables have no "margin" of their own (only Paragraphs do), so
+      // the source CSS's `.tableWrapper { margin: 1.5rem 0 }` is faked with
+      // near-invisible spacer paragraphs immediately before/after.
+      const { before, after } = state.theme.tableMarginTwips;
+      return [
+        verticalSpacerParagraph(before, "after"),
+        await convertTable(node, state),
+        verticalSpacerParagraph(after, "before"),
+      ];
     }
 
     default: {
