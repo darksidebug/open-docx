@@ -80,6 +80,7 @@ import FontSize from './ui/toolbars/FontSize';
 import { useDebounce } from '@/hooks/useDebounce';
 import { DocxParser } from '@/lib/docx/docx-parser';
 import ToolbarMenu from './ToolbarMenu';
+import { tiptapToDocx, downloadDocx } from "@/lib/export-to-docx";
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -150,6 +151,10 @@ const Toolbar2 = () => {
     }
   };
 
+  const exportToDocx = async () => {
+    await downloadDocx(editor.getJSON(), "document.docx");
+  }
+
   const handleLinkAdd = () => {
     const previousUrl = editor.getAttributes('link').href;
     const url = window.prompt('URL', previousUrl);
@@ -191,7 +196,7 @@ const Toolbar2 = () => {
         <div className="flex flex-wrap items-center gap-1 p-1.5 ">
           <button
             type="button"
-            onClick={() => document.execCommand('copy')}
+            onClick={exportToDocx}
             className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Copy (Ctrl+C)"
           >
