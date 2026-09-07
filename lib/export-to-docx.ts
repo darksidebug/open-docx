@@ -97,6 +97,13 @@ export interface ConvertOptions {
   /** Default max image display width in pixels (scaled proportionally). */
   maxImageWidthPx?: number;
   /**
+   * Called when an image fails to resolve/decode/convert, instead of the
+   * default `console.warn`. The image is always skipped either way (one bad
+   * image never aborts the whole export) — this just lets you surface it,
+   * e.g. as a toast: `onImageError: (src, err) => toast.warn(...)`.
+   */
+  onImageError?: (src: string, error: Error) => void;
+  /**
    * Maps non-standard node type names to the canonical ones this converter
    * understands (e.g. if your schema calls it "toggle" / "toggleSummary" /
    * "toggleContent" instead of "details" / "detailsSummary" / "detailsContent").
@@ -104,7 +111,51 @@ export interface ConvertOptions {
   nodeAliases?: Record<string, string>;
   /** Same idea as nodeAliases, but for mark types (e.g. { inlineCode: "code" }). */
   markAliases?: Record<string, string>;
+  /**
+   * Visual theme — colors/fonts/sizes for the elements a CSS stylesheet
+   * would normally control. Defaults below are pulled directly from a
+   * Tiptap `.tiptap` stylesheet; pass any subset to override just those.
+   */
+  theme?: Partial<DocxTheme>;
 }
+
+export interface DocxTheme {
+  /** `a { color: ... }` */
+  linkColor: string;
+  /** `td, th { border: 1px solid ... }` */
+  tableBorderColor: string;
+  /** `th { background-color: ... }` */
+  tableHeaderBg: string;
+  /** `pre, code { font-family: ... }` */
+  codeFont: string;
+  /** `pre { background: ... }` (inline `code` outside a `pre` gets no fill, matching the source CSS) */
+  codeBlockBg: string;
+  /**
+   * `blockquote { border-left: 3px solid var(--chart-2) }` — a CSS custom
+   * property can't be resolved from the stylesheet alone, so this needs a
+   * concrete fallback color. Override via `theme.quoteBorderColor` to match
+   * your actual `--chart-2` value.
+   */
+  quoteBorderColor: string;
+  /** `hr { border-top: 1px solid ... }` */
+  hrColor: string;
+  /** `h1..h6 { font-size: ...rem }`, converted to points (1rem = 12pt @ 16px root). */
+  headingSizesPt: { h1: number; h2: number; h3: number; h4: number; h5: number; h6: number };
+  /** `h1, h2 { margin: 1rem 0 }` — only h1/h2 have explicit spacing in the source CSS. */
+  headingSpacingTwips: { before: number; after: number };
+}
+
+const DEFAULT_THEME: DocxTheme = {
+  linkColor: "3B82F6",
+  tableBorderColor: "CED3D8",
+  tableHeaderBg: "F1F7FD",
+  codeFont: "JetBrains Mono",
+  codeBlockBg: "F5F8FD",
+  quoteBorderColor: "94A3B8", // fallback for unresolved var(--chart-2)
+  hrColor: "D4DBE5",
+  headingSizesPt: { h1: 16.8, h2: 14.4, h3: 13.2, h4: 12, h5: 12, h6: 12 },
+  headingSpacingTwips: { before: 240, after: 240 }, // 1rem = 16px = 12pt = 240 twips
+};
 
 const DEFAULT_MARK_ALIASES: Record<string, string> = {
   inlineCode: "code",
@@ -130,6 +181,7 @@ interface ConvertState {
     >
   > &
     ConvertOptions;
+  theme: DocxTheme;
   numberingConfigs: NumberingConfigEntry[];
   numberingCounter: number;
   contentWidthTwips: number;
@@ -243,6 +295,17 @@ function buildOrderedLevels(start: number): ILevelsOptions[] {
 
 // ---------------------------------------------------------------------------
 // Default image resolver (browser-native: atob + fetch, no Buffer)
+//
+// docx-js can only embed png/jpg/gif/bmp directly. Images pasted from
+// clipboards (e.g. copied out of Word, or off a webpage) routinely arrive
+// as `blob:` object URLs, or as `data:` URLs in formats docx-js can't embed
+// (webp, svg). This resolver:
+//   1. Fetches the raw bytes from whatever URL scheme it is (data/blob/http).
+//   2. Sniffs the *actual* format from magic bytes (never trusts a claimed
+//      mime type alone — clipboards routinely mislabel these).
+//   3. If it's already png/jpg/gif/bmp, uses it as-is.
+//   4. Otherwise (webp, svg, anything else) rasterizes it to PNG via an
+//      offscreen <img> + <canvas>, which only works in a real browser.
 // ---------------------------------------------------------------------------
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -252,46 +315,137 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-async function defaultResolveImage(src: string): Promise<ResolvedImage> {
-  const dataUrlMatch = src.match(/^data:image\/(png|jpe?g|gif|bmp);base64,(.+)$/i);
+async function fetchBytesFromUrl(src: string): Promise<{ bytes: Uint8Array; hintedMime?: string }> {
+  const dataUrlMatch = src.match(/^data:([^;,]+)?(;base64)?,(.*)$/is);
   if (dataUrlMatch) {
-    const ext = dataUrlMatch[1].toLowerCase();
-    const type = (ext === "jpeg" ? "jpg" : ext) as ResolvedImage["type"];
-    const data = base64ToUint8Array(dataUrlMatch[2]);
-    const dims = readImageDimensions(data, type);
-    return { data, width: dims.width, height: dims.height, type };
+    const [, mime, isBase64, payload] = dataUrlMatch;
+    const bytes = isBase64
+      ? base64ToUint8Array(payload)
+      : new TextEncoder().encode(decodeURIComponent(payload));
+    return { bytes, hintedMime: mime };
   }
 
-  if (/^https?:\/\//i.test(src)) {
+  if (/^(https?|blob):/i.test(src)) {
     if (typeof fetch !== "function") {
       throw new Error(
-        `Cannot fetch remote image "${src}": no global fetch available. ` +
-          `Pass a custom "resolveImage" option to handle remote images in this environment.`
+        `Cannot fetch image "${src}": no global fetch available in this environment. ` +
+          `Pass a custom "resolveImage" option to handle it yourself.`
       );
     }
     const res = await fetch(src);
     if (!res.ok) throw new Error(`Failed to fetch image "${src}": HTTP ${res.status}`);
-    const arrayBuf = await res.arrayBuffer();
-    const data = new Uint8Array(arrayBuf);
-    const contentType: string = res.headers.get("content-type") || "";
-    let type: ResolvedImage["type"] = "png";
-    if (/jpeg|jpg/i.test(contentType) || /\.jpe?g($|\?)/i.test(src)) type = "jpg";
-    else if (/gif/i.test(contentType) || /\.gif($|\?)/i.test(src)) type = "gif";
-    else if (/bmp/i.test(contentType) || /\.bmp($|\?)/i.test(src)) type = "bmp";
-    const dims = readImageDimensions(data, type);
-    return { data, width: dims.width, height: dims.height, type };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const contentType = res.headers.get("content-type") || undefined;
+    return { bytes, hintedMime: contentType };
   }
 
   throw new Error(
-    `Cannot resolve image src "${src}". Only data: URLs and http(s) URLs are supported ` +
-      `by the default resolver — pass a custom "resolveImage" option for anything else.`
+    `Cannot resolve image src "${src}". Only data:, blob:, and http(s) URLs are supported ` +
+      `by the default resolver — pass a custom "resolveImage" option for anything else ` +
+      `(e.g. a file:// path or an app-specific asset reference).`
   );
+}
+
+type SniffedFormat = "png" | "jpg" | "gif" | "bmp" | "webp" | "svg" | "unknown";
+
+/** Identifies the real image format from its bytes — never trusts a claimed mime type alone. */
+function sniffImageFormat(bytes: Uint8Array, hintedMime?: string): SniffedFormat {
+  const b = bytes;
+  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "png";
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
+  if (b.length >= 6 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return "gif"; // "GIF"
+  if (b.length >= 2 && b[0] === 0x42 && b[1] === 0x4d) return "bmp"; // "BM"
+  if (
+    b.length >= 12 &&
+    b[0] === 0x52 &&
+    b[1] === 0x49 &&
+    b[2] === 0x46 &&
+    b[3] === 0x46 && // "RIFF"
+    b[8] === 0x57 &&
+    b[9] === 0x45 &&
+    b[10] === 0x42 &&
+    b[11] === 0x50 // "WEBP"
+  ) {
+    return "webp";
+  }
+  // Text-based formats: sniff the leading text for SVG/XML.
+  const head = new TextDecoder("utf-8", { fatal: false }).decode(b.slice(0, 300)).trimStart();
+  if (head.startsWith("<?xml") || head.startsWith("<svg") || /^<svg[\s>]/.test(head)) return "svg";
+
+  if (hintedMime) {
+    if (/svg/i.test(hintedMime)) return "svg";
+    if (/webp/i.test(hintedMime)) return "webp";
+    if (/png/i.test(hintedMime)) return "png";
+    if (/jpe?g/i.test(hintedMime)) return "jpg";
+    if (/gif/i.test(hintedMime)) return "gif";
+    if (/bmp/i.test(hintedMime)) return "bmp";
+  }
+  return "unknown";
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000; // avoid blowing the call stack on String.fromCharCode(...array)
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+/** Rasterizes any browser-decodable image (webp, svg, ...) to PNG via canvas. Browser-only. */
+async function rasterizeToPng(
+  bytes: Uint8Array,
+  hintedMime: string | undefined
+): Promise<{ data: Uint8Array; width: number; height: number }> {
+  if (typeof Image === "undefined" || typeof document === "undefined") {
+    throw new Error(
+      "This image format needs canvas-based conversion, which requires a browser environment. " +
+        'Pass a custom "resolveImage" option to convert it yourself in this environment.'
+    );
+  }
+  const mime = hintedMime && /^image\//i.test(hintedMime) ? hintedMime : "image/png";
+  // A data: URL (rather than a Blob + object URL) keeps this free of any
+  // Blob/URL global dependency — just Image, document, and canvas.
+  const dataUrl = `data:${mime};base64,${uint8ArrayToBase64(bytes)}`;
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("Browser could not decode this image for conversion."));
+    el.src = dataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth || img.width || 300;
+  canvas.height = img.naturalHeight || img.height || 200;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas context unavailable for image conversion.");
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const pngDataUrl = canvas.toDataURL("image/png");
+  const base64 = pngDataUrl.slice(pngDataUrl.indexOf(",") + 1);
+  const data = base64ToUint8Array(base64);
+  return { data, width: canvas.width, height: canvas.height };
+}
+
+async function defaultResolveImage(src: string): Promise<ResolvedImage> {
+  const { bytes, hintedMime } = await fetchBytesFromUrl(src);
+  const format = sniffImageFormat(bytes, hintedMime);
+
+  if (format === "png" || format === "jpg" || format === "gif" || format === "bmp") {
+    const dims = readImageDimensions(bytes, format);
+    return { data: bytes, width: dims.width, height: dims.height, type: format };
+  }
+
+  // webp / svg / unknown: convert to something docx-js can actually embed.
+  const raster = await rasterizeToPng(bytes, hintedMime ?? (format === "svg" ? "image/svg+xml" : undefined));
+  return { data: raster.data, width: raster.width, height: raster.height, type: "png" };
 }
 
 /** Minimal PNG/JPEG/GIF/BMP dimension sniffers, built on DataView (no Node Buffer). */
 function readImageDimensions(
   bytes: Uint8Array,
-  type: ResolvedImage["type"]
+  type: "png" | "jpg" | "gif" | "bmp"
 ): { width: number; height: number } {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   try {
@@ -356,8 +510,9 @@ function marksToRunOptions(marks: TiptapMark[] | undefined, state: ConvertState)
         opts.superScript = true;
         break;
       case "code":
-        opts.font = "Consolas";
-        opts.shading = { type: ShadingType.CLEAR, fill: "F0F0F0", color: "auto" };
+        // Source CSS only sets font-family on `code` — no background outside
+        // a `pre` block — so inline code gets the theme font and nothing else.
+        opts.font = state.theme.codeFont;
         break;
       case "highlight": {
         const color = mark.attrs?.color ? cleanHex(String(mark.attrs.color)) : "FFFF00";
@@ -430,7 +585,7 @@ async function convertInline(
               new TextRun({
                 ...runOptions,
                 style: "Hyperlink",
-                color: runOptions.color ?? "0563C1",
+                color: runOptions.color ?? state.theme.linkColor,
                 underline: runOptions.underline ?? { type: UnderlineType.SINGLE },
               }),
             ],
@@ -460,9 +615,16 @@ async function imageNodeToRun(node: TiptapNode, state: ConvertState): Promise<Im
   try {
     resolved = await resolver(src);
   } catch (err) {
-    // Degrade gracefully: emit nothing rather than throwing the whole conversion away.
-    // eslint-disable-next-line no-console
-    console.warn(`[tiptapToDocx] Skipping image: ${(err as Error).message}`);
+    // Degrade gracefully by default: emit nothing rather than throwing the
+    // whole conversion away for one bad image. Callers can hook onImageError
+    // to surface this in their UI instead of relying on the console.
+    const message = (err as Error).message;
+    if (state.options.onImageError) {
+      state.options.onImageError(src, err as Error);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(`[tiptapToDocx] Skipping image (${src.slice(0, 60)}...): ${message}`);
+    }
     return null;
   }
 
@@ -538,7 +700,7 @@ async function convertBlockNode(
           indent: extraIndentTwips ? { left: extraIndentTwips } : undefined,
           border: quoteBorderDepth
             ? {
-                left: { style: BorderStyle.SINGLE, size: 12, color: "CCCCCC", space: 8 },
+                left: { style: BorderStyle.SINGLE, size: 12, color: state.theme.quoteBorderColor, space: 8 },
               }
             : undefined,
         }),
@@ -641,22 +803,18 @@ async function convertBlockNode(
         runs.push(
           new TextRun({
             text: line,
-            font: "Consolas",
-            size: halfPointsFromPt(state.options.defaultFontSizePt - 1),
+            font: state.theme.codeFont,
+            size: halfPointsFromPt(9.6), // source CSS: `pre code { font-size: 0.8rem }` (0.8 * 12pt)
             break: i === 0 ? undefined : 1,
           })
         );
       });
       return [
         new Paragraph({
-          children: runs.length ? runs : [new TextRun({ text: "", font: "Consolas" })],
-          shading: { type: ShadingType.CLEAR, fill: "F5F5F5", color: "auto" },
-          border: {
-            top: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 4 },
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 4 },
-            left: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 4 },
-            right: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 4 },
-          },
+          children: runs.length ? runs : [new TextRun({ text: "", font: state.theme.codeFont })],
+          // Source CSS gives `pre` a background + border-radius but no border —
+          // docx paragraphs can't do rounded corners, so this is fill-only.
+          shading: { type: ShadingType.CLEAR, fill: state.theme.codeBlockBg, color: "auto" },
           spacing: { before: 120, after: 120 },
         }),
       ];
@@ -667,7 +825,7 @@ async function convertBlockNode(
         new Paragraph({
           children: [new TextRun("")],
           border: {
-            bottom: { style: BorderStyle.SINGLE, size: 6, color: "999999", space: 1 },
+            bottom: { style: BorderStyle.SINGLE, size: 6, color: state.theme.hrColor, space: 1 },
           },
         }),
       ];
@@ -796,6 +954,10 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
   }
   const tableWidthTwip = columnWidthsTwip.reduce((a, b) => a + b, 0);
 
+  // `td, th { padding: 2px 5px }` → twips (15 twips per CSS px).
+  const cellMargins = { top: 30, bottom: 30, left: 75, right: 75 };
+  const tableBorder = { style: BorderStyle.SINGLE, size: 4, color: state.theme.tableBorderColor };
+
   // rowSpanCarry[col] = remaining rows (including current) this column is still merged for.
   const rowSpanCarry: number[] = new Array(columnCount).fill(0);
   const rows: TableRow[] = [];
@@ -822,6 +984,7 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
             children: [new Paragraph({ children: [] })],
             verticalMerge: VerticalMergeType.CONTINUE,
             width: { size: width, type: WidthType.DXA },
+            margins: cellMargins,
           })
         );
         rowSpanCarry[col] -= 1;
@@ -836,6 +999,7 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
           new TableCell({
             children: [new Paragraph({ children: [] })],
             width: { size: columnWidthsTwip[col], type: WidthType.DXA },
+            margins: cellMargins,
           })
         );
         col += 1;
@@ -856,10 +1020,11 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
           width: { size: width, type: WidthType.DXA },
           columnSpan: span > 1 ? span : undefined,
           verticalMerge: pending.rowSpan > 1 ? VerticalMergeType.RESTART : undefined,
+          margins: cellMargins,
           shading: bg
             ? { type: ShadingType.CLEAR, fill: cleanHex(String(bg)), color: "auto" }
             : isHeader
-            ? { type: ShadingType.CLEAR, fill: "EEEEEE", color: "auto" }
+            ? { type: ShadingType.CLEAR, fill: state.theme.tableHeaderBg, color: "auto" }
             : undefined,
         })
       );
@@ -877,6 +1042,14 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
     rows,
     width: { size: tableWidthTwip, type: WidthType.DXA },
     columnWidths: columnWidthsTwip,
+    borders: {
+      top: tableBorder,
+      bottom: tableBorder,
+      left: tableBorder,
+      right: tableBorder,
+      insideHorizontal: tableBorder,
+      insideVertical: tableBorder,
+    },
   });
 }
 
@@ -900,12 +1073,31 @@ async function buildDocxDocument(doc: TiptapDocument, options: ConvertOptions): 
       maxImageWidthPx: options.maxImageWidthPx ?? DEFAULT_MAX_IMAGE_WIDTH_PX,
       ...options,
     },
+    theme: { ...DEFAULT_THEME, ...options.theme },
     numberingConfigs: [],
     numberingCounter: 0,
     contentWidthTwips,
   };
 
   const body = await convertBlocks(doc.content, state, {});
+
+  const { headingSizesPt, headingSpacingTwips } = state.theme;
+  const headingStyle = (id: string, name: string, sizePt: number, spacing?: { before: number; after: number }) => ({
+    id,
+    name,
+    basedOn: "Normal",
+    next: "Normal",
+    quickFormat: true,
+    run: {
+      // Source CSS doesn't set a heading color, so this intentionally
+      // overrides Word's default blue Heading styles back to plain text.
+      bold: true,
+      color: "000000",
+      size: halfPointsFromPt(sizePt),
+      font: state.options.defaultFont,
+    },
+    paragraph: spacing ? { spacing: { before: spacing.before, after: spacing.after } } : undefined,
+  });
 
   return new Document({
     numbering: state.numberingConfigs.length ? { config: state.numberingConfigs } : undefined,
@@ -918,6 +1110,16 @@ async function buildDocxDocument(doc: TiptapDocument, options: ConvertOptions): 
           },
         },
       },
+      paragraphStyles: [
+        // Source CSS: h1, h2 { margin: 1rem 0 } — h3-6 have no explicit
+        // margin override, so they fall back to Word's own defaults.
+        headingStyle("Heading1", "Heading 1", headingSizesPt.h1, headingSpacingTwips),
+        headingStyle("Heading2", "Heading 2", headingSizesPt.h2, headingSpacingTwips),
+        headingStyle("Heading3", "Heading 3", headingSizesPt.h3),
+        headingStyle("Heading4", "Heading 4", headingSizesPt.h4),
+        headingStyle("Heading5", "Heading 5", headingSizesPt.h5),
+        headingStyle("Heading6", "Heading 6", headingSizesPt.h6),
+      ],
     },
     sections: [
       {
