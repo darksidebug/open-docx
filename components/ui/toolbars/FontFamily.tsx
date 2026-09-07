@@ -1,8 +1,9 @@
 import { useEditorStore } from '@/store/useEditorStore';
 import React, { useEffect, useState } from 'react';
 import Dropdown from '../customs/Dropdown';
+import { cn } from '@/lib/utils';
 
-const FontFamily = () => {
+const FontFamily = ({ modifier = ''}) => {
   const FONT_FAMILIES = [
     'Arial',
     'Calibri',
@@ -12,6 +13,7 @@ const FontFamily = () => {
     'Geist Mono',
     'Geist Sans',
     'Inter',
+    'JetBrains Mono',
     'Poppins',
     'Roboto',
     'Times New Roman',
@@ -60,7 +62,7 @@ const FontFamily = () => {
         editor?.chain()?.focus()?.setFontFamily(font)?.run()
       }}
       items={FONT_FAMILIES}
-      className='min-w-32.5'
+      className={cn('min-w-37.5', modifier)}
       renderStyle='fontFamily'
       title='Font Family'
       withIconCheck

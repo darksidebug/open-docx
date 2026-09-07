@@ -5,6 +5,8 @@ import {
   Poppins,
   Google_Sans,
   Roboto,
+  JetBrains_Mono,
+  Inter
 } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const jetBrainsMono = JetBrains_Mono({
+  variable: "--font-jet-brains-mono",
+  subsets: ["latin"],
+});
+
 const googleSans = Google_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -33,6 +40,11 @@ const googleSans = Google_Sans({
 
 const roboto = Roboto({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -51,10 +63,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         googleSans.variable,
         // poppins.className,
         roboto.variable,
+        jetBrainsMono.variable,
+        inter.variable,
         'h-full antialiased'
       )}
     >
-      <body className="min-h-full flex flex-col text-gray-800">{children}</body>
+      <body className="min-h-full flex flex-col text-gray-800 bg-[#F9FBFD]">{children}</body>
     </html>
   );
 }

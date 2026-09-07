@@ -20,11 +20,15 @@ import { Details, DetailsSummary, DetailsContent } from '@/lib/extensions/detail
 import { Column, ColumnBlock, columnPlaceholderText } from '@/lib/extensions/column-block';
 import { PasteDefaultFont } from '@/lib/extensions/paste-default-font';
 import { Placeholder } from '@tiptap/extensions';
-import HorizontalRule from '@tiptap/extension-horizontal-rule'
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import { LineHeightExtension } from '@/lib/extensions/line-height';
+import { PageBreak } from '@/lib/extensions/page-break';
+import { VerticalAlign } from '@/lib/extensions/vertical-align';
 
 const Editor = () => {
   const { setEditor } = useEditorStore();
-  const containerRef = useRef<HTMLDivElement>(null)
+
+  const spellChecker = () => {};
 
   const editor = useEditor({
     onCreate({ editor }) {
@@ -54,11 +58,20 @@ const Editor = () => {
     editorProps: {
       attributes: {
         style: 'padding-left: 56px; padding-right: 56px;',
-        class: 'focus:outline-none print:border-0 bg-white rounded-sm border border-gray-200 flex flex-col min-h-[1054px] w-[816px] pt-10 pr-14 pb-10 text-[13px] font-medium cursor-text',
+        class: 'overflow-x-visible focus:outline-none print:border-0 bg-white border border-gray-200 flex flex-col min-h-[1054px] w-[816px] pt-10 pr-14 pb-10 text-[13px] cursor-text',
       }
     },
     extensions: [
       StarterKit,
+      // SpellcheckerExtension.configure({
+      //     proofreader: spellChecker,
+      //     uiStrings: {
+      //         noSuggestions: 'No suggestions found'
+      //     }
+      // }),
+      VerticalAlign,
+      PageBreak,
+      LineHeightExtension,
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
@@ -68,11 +81,13 @@ const Editor = () => {
       FontFamily,
       PasteDefaultFont.configure({
         fontFamily: 'Google Sans',
-        fontSize: '14px',
+        fontSize: '13px',
       }),
       TextStyle,
       Color,
-      FontSize,
+      FontSize.configure({
+        
+      }),
       CustomImageExtension,
       TaskList,
       TaskItem.configure({
@@ -85,6 +100,9 @@ const Editor = () => {
       CustomTableHeader,
       CodeBlock.configure({
         enableTabIndentation: true,
+        HTMLAttributes: {
+          style: 'font-family: "JetBrains Mono", monospace;',
+        },
       }),
       HorizontalRule,
       Details.configure({
@@ -117,9 +135,8 @@ const Editor = () => {
   })
 
   return (
-    <div className="h-screen size-full overflow-x-auto bg-[#F9FBFD] px-4 print:p-0 print:bg-white print:overflow-auto">
-      <div ref={containerRef} className="mx-auto min-w-max flex justify-center w-204 py-4 print:py-0 print:w-full print:min-w-0">
-        <TableBubbleMenu editor={editor!} containerRef={containerRef} />
+    <div className="size-full bg-[#F9FBFD] px-4 print:p-0 print:bg-white print:overflow-auto">
+      <div className="mx-auto min-w-max flex justify-center w-204 py-4 print:py-0 print:w-full print:min-w-0">
         <EditorContent editor={editor} />
       </div>
     </div>

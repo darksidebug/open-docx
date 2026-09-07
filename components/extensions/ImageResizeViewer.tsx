@@ -70,38 +70,38 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
           className="w-full h-auto block rounded"
         />
 
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-white dark:bg-zinc-800 p-1.5 rounded-lg shadow-md border border-zinc-200 dark:border-zinc-700 z-10 after:content-[''] after:absolute after:-bottom-4 after:left-0 after:right-0 after:h-4">
+        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 z-10 after:content-[''] after:absolute after:-top-4 after:left-0 after:right-0 after:h-4">
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "left" })}
-            className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 ${
+            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
               alignment === "left" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
             }`}
             title="Align Left"
           >
-            <AlignLeft className="w-4 h-4" />
+            <AlignLeft className="size-4" />
           </button>
 
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "center" })}
-            className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 ${
+            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
               alignment === "center" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
             }`}
             title="Align Center"
           >
-            <AlignCenter className="w-4 h-4" />
+            <AlignCenter className="size-4" />
           </button>
 
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "right" })}
-            className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 ${
+            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
               alignment === "right" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
             }`}
             title="Align Right"
           >
-            <AlignRight className="w-4 h-4" />
+            <AlignRight className="size-4" />
           </button>
 
           <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1" />
@@ -109,10 +109,10 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={deleteNode}
-            className="p-1.5 rounded hover:bg-red-500 text-red-500 hover:text-white dark:hover:bg-red-950/30"
+            className="p-1 rounded hover:bg-red-520 text-red-500 hover:text-white dark:hover:bg-red-950/30"
             title="Delete Image"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="size-4" />
           </button>
         </div>
 

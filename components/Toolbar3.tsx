@@ -125,7 +125,7 @@ const TYPOGRAPHIES = [
   }
 ];
 
-const Toolbar2 = () => {
+const Toolbar3 = () => {
   const {
     editor,
     handleCopyFormat,
@@ -191,38 +191,6 @@ const Toolbar2 = () => {
         <div className="flex flex-wrap items-center gap-1 p-1.5 ">
           <button
             type="button"
-            onClick={() => document.execCommand('copy')}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Copy (Ctrl+C)"
-          >
-            <Copy className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => document.execCommand('cut')}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Cut (Ctrl+X)"
-          >
-            <Scissors className="size-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={async () => {
-              const text = await navigator.clipboard.readText();
-              editor.chain().focus().insertContent(text).run();
-            }}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Paste (Ctrl+V)"
-          >
-            <Clipboard className="size-4" />
-          </button>
-
-          {/* <div className="w-px h-5 relative mx-1 bg-[#c4c7c5] dark:bg-zinc-700" /> */}
-
-          {/* TODO: fix the issue on undo - redo */}
-          <button
-            type="button"
             onClick={() => document.execCommand('undo')}
             className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Undo"
@@ -237,26 +205,6 @@ const Toolbar2 = () => {
           >
             <Redo2 className="size-4" />
           </button>
-
-          <button
-            type="button"
-            onClick={() => document.execCommand('print')}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Print"
-          >
-            <Printer className="size-3.75" />
-          </button>
-
-          {/* <button
-            type="button"
-            onClick={() => editor?.commands.checkSpelling()}
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Spell Check"
-          >
-            <SpellCheck className="size-4" />
-          </button> */}
-
-          <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
 
           <FontFamily />
 
@@ -565,58 +513,6 @@ const Toolbar2 = () => {
           </button>
 
           <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
-          
-          <button
-            type="button"
-            onClick={() => editor?.commands.setPageBreak()}
-            className={`px-1.5 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800`}
-            title="Insert Page Break"
-          >
-            <SquareCenterlineDashedVertical className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor.chain()?.focus()?.setHorizontalRule()?.run()}
-            className={`px-1.25 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('horizontalRule') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
-            title="Add Line"
-          >
-            <Minus className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.toggleCodeBlock()?.run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('codeBlock') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
-            title="Code Block"
-          >
-            <Code className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.toggleBlockquote()?.run()}
-            className={`p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('blockquote') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
-            title="Blockquote"
-          >
-            <Quote className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.setDetails()?.run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('details') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
-            title="Details"
-          >
-            <ListCollapse className="size-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().insertColumns().run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('columnBlock') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
-            title="Two Column Layout"
-          >
-            <Columns2 className="size-4" />
-          </button>
-
-          <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
 
           <button
             type="button"
@@ -626,40 +522,6 @@ const Toolbar2 = () => {
           >
             <TableIcon className="size-4" />
           </button>
-
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().splitCell().run()}
-            className="p-1.25 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-700 dark:text-zinc-300 disabled:opacity-40"
-            title="Cell Border"
-          >
-            <SquareDashedTopSolid className='size-4' />
-          </button>
-
-          <div className="relative group">
-            <button
-              disabled={!editor?.isActive('table')}
-              type="button"
-              className="p-1.5 rounded hover:bg-zinc-200 disabled:hover:bg-transparent dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Vertical Align"
-            >
-              <AlignStartVertical className="size-3.75" />
-            </button>
-            {editor?.isActive('table') && (
-              <div className="absolute left-0 top-full text-[13px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 min-w-32.5 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().setVerticalAlign('top').run()
-                  }} 
-                  className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Top</button>
-                <button type="button" onClick={() => editor.chain().focus().setVerticalAlign('middle').run()} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Middle</button>
-                <button type="button" onClick={() => editor.chain().focus().setVerticalAlign('bottom').run()} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Bottom</button>
-              </div>
-            )}
-          </div>
-
-          <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
 
           <button
             type="button"
@@ -678,8 +540,6 @@ const Toolbar2 = () => {
             <ImageIcon className="size-4" />
           </button>
 
-          {/* <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" /> */}
-
           <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
@@ -688,32 +548,10 @@ const Toolbar2 = () => {
           >
             <Eraser className="size-4" />
           </button>
-          {/* <button
-            type="button"
-            onClick={() => editor?.chain().clearContent()?.run()}
-            className="p-1.25 rounded hover:bg-red-500 dark:hover:bg-red-500 hover:text-white"
-            title="Clear Content"
-          >
-            <Trash2 className="size-4" />
-          </button> */}
-
-          {/* <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
-
-          <button
-            type="button"
-            className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Add Comment"
-          >
-            <MessageSquare className="size-4" />
-          </button> */}
-        </div>
-        <div className="flex items-center gap-2 px-2 mr-2 text-sm">
-          {/* <Pencil className="w-3.5 h-3.5" />
-          <span className="font-sans">Editing</span> */}
         </div>
       </div>
     </div>
   );
 }
 
-export default Toolbar2;
+export default Toolbar3;
