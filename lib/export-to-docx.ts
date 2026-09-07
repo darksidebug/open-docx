@@ -28,6 +28,7 @@ import {
   HeadingLevel,
   ImageRun,
   LevelFormat,
+  LineRuleType,
   Packer,
   PageBreak,
   PageOrientation,
@@ -38,6 +39,7 @@ import {
   TableRow,
   TextRun,
   UnderlineType,
+  VerticalAlignTable,
   VerticalMergeType,
   WidthType,
   convertInchesToTwip,
@@ -162,6 +164,11 @@ const DEFAULT_MARK_ALIASES: Record<string, string> = {
   codeInline: "code",
 };
 
+/** Custom node type names this converter recognizes out of the box. */
+const DEFAULT_NODE_ALIASES: Record<string, string> = {
+  customImage: "image", // e.g. a resizable-image extension with its own node name
+};
+
 const DEFAULT_MAX_IMAGE_WIDTH_PX = 600;
 
 // ---------------------------------------------------------------------------
@@ -242,8 +249,44 @@ function nextNumberingReference(state: ConvertState, kind: "bullet" | "ordered")
   return `${kind}-list-${state.numberingCounter}`;
 }
 
+/**
+ * Converts a CSS `line-height` value (from a `lineHeight` global attribute
+ * extension) into docx paragraph spacing. CSS line-height comes in three
+ * flavors:
+ *   - "normal" / unset → no override (Word's own default applies).
+ *   - unitless multiplier ("1.5") or percentage ("150%") → relative to the
+ *     font size, so docx's "auto" line rule (line = 240 * multiplier).
+ *   - absolute length ("24px", "1.5em") → a fixed height regardless of font
+ *     size, so docx's "atLeast" line rule (line = twentieths-of-a-point).
+ */
+function lineHeightToSpacing(value: unknown): { line: number; lineRule: (typeof LineRuleType)[keyof typeof LineRuleType] } | undefined {
+  if (typeof value !== "string") return undefined;
+  const v = value.trim().toLowerCase();
+  if (!v || v === "normal") return undefined;
+
+  const percentMatch = v.match(/^([\d.]+)%$/);
+  if (percentMatch) {
+    return { line: Math.round(240 * (parseFloat(percentMatch[1]) / 100)), lineRule: LineRuleType.AUTO };
+  }
+  const unitlessMatch = v.match(/^([\d.]+)$/);
+  if (unitlessMatch) {
+    return { line: Math.round(240 * parseFloat(unitlessMatch[1])), lineRule: LineRuleType.AUTO };
+  }
+  const emMatch = v.match(/^([\d.]+)(em|rem)$/);
+  if (emMatch) {
+    // Relative to font size, same as a unitless multiplier for our purposes.
+    return { line: Math.round(240 * parseFloat(emMatch[1])), lineRule: LineRuleType.AUTO };
+  }
+  const absoluteMatch = v.match(/^([\d.]+)(px|pt)$/);
+  if (absoluteMatch) {
+    const pt = absoluteMatch[2] === "px" ? parseFloat(absoluteMatch[1]) * 0.75 : parseFloat(absoluteMatch[1]);
+    return { line: Math.round(pt * 20), lineRule: LineRuleType.AT_LEAST };
+  }
+  return undefined;
+}
+
 function canonicalNodeType(type: string, state: ConvertState): string {
-  return state.options.nodeAliases?.[type] ?? type;
+  return state.options.nodeAliases?.[type] ?? DEFAULT_NODE_ALIASES[type] ?? type;
 }
 
 function canonicalMarkType(type: string, state: ConvertState): string {
@@ -339,14 +382,36 @@ async function fetchBytesFromUrl(src: string): Promise<{ bytes: Uint8Array; hint
     return { bytes, hintedMime: contentType };
   }
 
+  // Relative ("/uploads/x.png") or protocol-relative ("//cdn.example.com/x.png")
+  // URLs — common when an app serves its own uploaded images. Resolve
+  // against the page origin and retry, since that's almost certainly what
+  // the app author meant.
+  if (typeof window !== "undefined" && window.location && !/^[a-z][a-z0-9+.-]*:/i.test(src)) {
+    const absolute = new URL(src, window.location.href).toString();
+    return fetchBytesFromUrl(absolute);
+  }
+
   throw new Error(
-    `Cannot resolve image src "${src}". Only data:, blob:, and http(s) URLs are supported ` +
-      `by the default resolver — pass a custom "resolveImage" option for anything else ` +
-      `(e.g. a file:// path or an app-specific asset reference).`
+    `Cannot resolve image src "${src}". Only data:, blob:, http(s), and relative/` +
+      `protocol-relative URLs are supported by the default resolver — pass a custom ` +
+      `"resolveImage" option for anything else (e.g. a file:// path or an app-specific ` +
+      `asset reference).`
   );
 }
 
-type SniffedFormat = "png" | "jpg" | "gif" | "bmp" | "webp" | "svg" | "unknown";
+type SniffedFormat = "png" | "jpg" | "gif" | "bmp" | "webp" | "svg" | "tiff" | "emf" | "wmf" | "heic" | "unknown";
+
+/**
+ * Formats that are common on OS clipboards (especially when copying out of
+ * Word) but that NO browser can decode via <img>/<canvas> — there is no
+ * client-side fallback for these; they need a real conversion library.
+ */
+const UNDECODABLE_IN_BROWSER: Partial<Record<SniffedFormat, string>> = {
+  tiff: "TIFF — very common on macOS clipboards when copying images out of Word/Preview/Pages",
+  emf: "EMF (Windows Enhanced Metafile) — very common on Windows clipboards when copying out of Word",
+  wmf: "WMF (Windows Metafile) — same family as EMF, same cause",
+  heic: "HEIC/HEIF",
+};
 
 /** Identifies the real image format from its bytes — never trusts a claimed mime type alone. */
 function sniffImageFormat(bytes: Uint8Array, hintedMime?: string): SniffedFormat {
@@ -368,6 +433,38 @@ function sniffImageFormat(bytes: Uint8Array, hintedMime?: string): SniffedFormat
   ) {
     return "webp";
   }
+  // TIFF: "II*\0" (little-endian) or "MM\0*" (big-endian)
+  if (b.length >= 4 && ((b[0] === 0x49 && b[1] === 0x49 && b[2] === 0x2a && b[3] === 0x00) ||
+      (b[0] === 0x4d && b[1] === 0x4d && b[2] === 0x00 && b[3] === 0x2a))) {
+    return "tiff";
+  }
+  // WMF: standard header, or the "Aldus Placeable" wrapper some clipboards use.
+  if (
+    b.length >= 4 &&
+    ((b[0] === 0x01 && b[1] === 0x00 && b[2] === 0x09 && b[3] === 0x00) ||
+      (b[0] === 0xd7 && b[1] === 0xcd && b[2] === 0xc6 && b[3] === 0x9a))
+  ) {
+    return "wmf";
+  }
+  // EMF: record type 1, with the "EMF " signature at byte offset 40.
+  if (
+    b.length >= 44 &&
+    b[0] === 0x01 &&
+    b[1] === 0x00 &&
+    b[2] === 0x00 &&
+    b[3] === 0x00 &&
+    b[40] === 0x20 &&
+    b[41] === 0x45 &&
+    b[42] === 0x4d &&
+    b[43] === 0x46
+  ) {
+    return "emf";
+  }
+  // HEIC/HEIF: ISO base media file format with a heic/heif/mif1-family brand.
+  if (b.length >= 12 && b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) {
+    const brand = new TextDecoder("ascii").decode(b.slice(8, 12));
+    if (/^(heic|heix|hevc|hevx|mif1|msf1|heim|heis|hevm|hevs)$/i.test(brand)) return "heic";
+  }
   // Text-based formats: sniff the leading text for SVG/XML.
   const head = new TextDecoder("utf-8", { fatal: false }).decode(b.slice(0, 300)).trimStart();
   if (head.startsWith("<?xml") || head.startsWith("<svg") || /^<svg[\s>]/.test(head)) return "svg";
@@ -379,6 +476,10 @@ function sniffImageFormat(bytes: Uint8Array, hintedMime?: string): SniffedFormat
     if (/jpe?g/i.test(hintedMime)) return "jpg";
     if (/gif/i.test(hintedMime)) return "gif";
     if (/bmp/i.test(hintedMime)) return "bmp";
+    if (/tiff?/i.test(hintedMime)) return "tiff";
+    if (/heic|heif/i.test(hintedMime)) return "heic";
+    if (/emf/i.test(hintedMime)) return "emf";
+    if (/wmf/i.test(hintedMime)) return "wmf";
   }
   return "unknown";
 }
@@ -435,6 +536,20 @@ async function defaultResolveImage(src: string): Promise<ResolvedImage> {
   if (format === "png" || format === "jpg" || format === "gif" || format === "bmp") {
     const dims = readImageDimensions(bytes, format);
     return { data: bytes, width: dims.width, height: dims.height, type: format };
+  }
+
+  const undecodableReason = UNDECODABLE_IN_BROWSER[format];
+  if (undecodableReason) {
+    throw new Error(
+      `This image is ${undecodableReason}. No browser can decode this format via <img>/canvas, ` +
+        `so it can't be auto-converted like WEBP/SVG can. This usually means the paste/upload handler ` +
+        `grabbed the OS clipboard's native format instead of a web-friendly one. Fix at the source: ` +
+        `when reading the clipboard, prefer "image/png" (e.g. clipboardData.items — browsers typically ` +
+        `offer a PNG-normalized copy alongside the native one; or with the async Clipboard API, check ` +
+        `ClipboardItem.types and pick "image/png" if present). Otherwise, pass a custom "resolveImage" ` +
+        `that runs this through a real conversion library (e.g. server-side with sharp/libvips, or a ` +
+        `WASM decoder) before returning bytes.`
+    );
   }
 
   // webp / svg / unknown: convert to something docx-js can actually embed.
@@ -600,6 +715,10 @@ async function convertInline(
     } else if (node.type === "image") {
       const run = await imageNodeToRun(node, state);
       if (run) children.push(run);
+    } else if (!node.content && extractImageSrc(node)) {
+      // Same custom-image-node fallback as the block-level converter.
+      const run = await imageNodeToRun(node, state);
+      if (run) children.push(run);
     } else if (node.content) {
       children.push(...(await convertInline(node.content, state, extraRunOptions)));
     }
@@ -607,9 +726,77 @@ async function convertInline(
   return children;
 }
 
+function reportImageIssue(state: ConvertState, src: string, error: Error): void {
+  if (state.options.onImageError) {
+    state.options.onImageError(src, error);
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn(`[tiptapToDocx] Skipping image (${src.slice(0, 60)}): ${error.message}`);
+  }
+}
+
+/** Common attr keys different Tiptap image extensions use for the URL. */
+const IMAGE_SRC_ATTR_KEYS = ["src", "url", "href", "path"];
+function extractImageSrc(node: TiptapNode): string | undefined {
+  for (const key of IMAGE_SRC_ATTR_KEYS) {
+    const value = node.attrs?.[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Resolves a CSS-ish width attr (from a resizable-image extension) to pixels.
+ * Handles "50%" (relative to page content width), "300px"/"300", and bare
+ * numbers. Returns undefined for anything else (e.g. "auto", "100%" is
+ * technically valid but so common as a default that treating it as "no
+ * explicit width" gives nicer results than always filling the page).
+ */
+function resolveExplicitWidthPx(width: unknown, contentWidthTwips: number): number | undefined {
+  if (typeof width === "number") return width > 0 ? width : undefined;
+  if (typeof width !== "string") return undefined;
+  const v = width.trim();
+  const percentMatch = v.match(/^(\d+(?:\.\d+)?)%$/);
+  if (percentMatch) {
+    const pct = parseFloat(percentMatch[1]);
+    if (pct >= 100) return undefined; // "100%" == default sizing, not a real constraint
+    const contentWidthPx = contentWidthTwips / 15;
+    return Math.round((pct / 100) * contentWidthPx);
+  }
+  const pxMatch = v.match(/^(\d+(?:\.\d+)?)(px)?$/);
+  if (pxMatch) return Math.round(parseFloat(pxMatch[1]));
+  return undefined;
+}
+
+/** Maps a resizable-image extension's `attrs.alignment` to a paragraph alignment. */
+function imageAlignmentFromAttrs(attrs: Record<string, any> | undefined): (typeof AlignmentType)[keyof typeof AlignmentType] {
+  switch (attrs?.alignment) {
+    case "left":
+      return AlignmentType.LEFT;
+    case "right":
+      return AlignmentType.RIGHT;
+    default:
+      return AlignmentType.CENTER;
+  }
+}
+
 async function imageNodeToRun(node: TiptapNode, state: ConvertState): Promise<ImageRun | null> {
-  const src: string | undefined = node.attrs?.src;
-  if (!src) return null;
+  const src = extractImageSrc(node);
+  if (!src) {
+    // This used to fail 100% silently (not even a console warning) — now it
+    // surfaces, since a missing src is usually a sign the image node uses a
+    // non-standard attrs key this converter doesn't know to check yet.
+    reportImageIssue(
+      state,
+      "(no src found)",
+      new Error(
+        `Image node has no resolvable URL — checked attrs: ${IMAGE_SRC_ATTR_KEYS.join(", ")}. ` +
+          `If your image extension stores the URL under a different attr, add it via the ` +
+          `(currently fixed) list or open an issue / adjust extractImageSrc().`
+      )
+    );
+    return null;
+  }
   const resolver = state.options.resolveImage ?? defaultResolveImage;
   let resolved: ResolvedImage;
   try {
@@ -618,19 +805,22 @@ async function imageNodeToRun(node: TiptapNode, state: ConvertState): Promise<Im
     // Degrade gracefully by default: emit nothing rather than throwing the
     // whole conversion away for one bad image. Callers can hook onImageError
     // to surface this in their UI instead of relying on the console.
-    const message = (err as Error).message;
-    if (state.options.onImageError) {
-      state.options.onImageError(src, err as Error);
-    } else {
-      // eslint-disable-next-line no-console
-      console.warn(`[tiptapToDocx] Skipping image (${src.slice(0, 60)}...): ${message}`);
-    }
+    reportImageIssue(state, src, err as Error);
     return null;
   }
 
   const maxWidth = state.options.maxImageWidthPx;
   let { width, height } = resolved;
-  if (width > maxWidth) {
+  const explicitWidthPx = resolveExplicitWidthPx(node.attrs?.width, state.contentWidthTwips);
+  if (explicitWidthPx) {
+    // An explicit width (e.g. from a resizable-image extension) always wins
+    // over the natural size, but is still capped to the page's content
+    // width so a stray "500%" can't blow off the page.
+    const pageContentWidthPx = state.contentWidthTwips / 15;
+    const targetWidth = Math.min(explicitWidthPx, pageContentWidthPx);
+    height = Math.round((height * targetWidth) / width);
+    width = Math.round(targetWidth);
+  } else if (width > maxWidth) {
     height = Math.round((height * maxWidth) / width);
     width = maxWidth;
   }
@@ -662,6 +852,14 @@ interface BlockOpts {
   extraIndentTwips?: number;
   /** Nesting depth for collapsible <details> summaries (drives w:outlineLvl). */
   toggleDepth?: number;
+  /**
+   * Default alignment/run styling inherited from an enclosing table cell's
+   * per-cell attrs (e.g. a custom TableCell extension's `textAlign`,
+   * `textColor`, `fontSize`). Explicit attrs/marks on the node itself
+   * always win over these.
+   */
+  cellDefaultAlignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
+  cellDefaultRunProps?: Partial<IRunOptions>;
 }
 
 async function convertBlocks(
@@ -688,12 +886,13 @@ async function convertBlockNode(
 
   switch (type) {
     case "paragraph": {
-      const children = await convertInline(node.content, state);
+      const children = await convertInline(node.content, state, opts.cellDefaultRunProps);
       return [
         new Paragraph({
           children: children.length ? children : [new TextRun("")],
-          alignment: alignmentFromAttrs(node.attrs),
+          alignment: alignmentFromAttrs(node.attrs) ?? opts.cellDefaultAlignment,
           pageBreakBefore: node.attrs?.pageBreakBefore === true,
+          spacing: lineHeightToSpacing(node.attrs?.lineHeight),
           numbering: opts.listContext
             ? { reference: opts.listContext.reference, level: opts.listContext.level }
             : undefined,
@@ -717,12 +916,13 @@ async function convertBlockNode(
         5: HeadingLevel.HEADING_5,
         6: HeadingLevel.HEADING_6,
       };
-      const children = await convertInline(node.content, state);
+      const children = await convertInline(node.content, state, opts.cellDefaultRunProps);
       return [
         new Paragraph({
           heading: headingMap[level] ?? HeadingLevel.HEADING_1,
-          alignment: alignmentFromAttrs(node.attrs),
+          alignment: alignmentFromAttrs(node.attrs) ?? opts.cellDefaultAlignment,
           pageBreakBefore: node.attrs?.pageBreakBefore === true,
+          spacing: lineHeightToSpacing(node.attrs?.lineHeight),
           children: children.length ? children : [new TextRun("")],
         }),
       ];
@@ -838,7 +1038,60 @@ async function convertBlockNode(
 
     case "image": {
       const run = await imageNodeToRun(node, state);
-      return [new Paragraph({ children: run ? [run] : [], alignment: AlignmentType.CENTER })];
+      return [new Paragraph({ children: run ? [run] : [], alignment: imageAlignmentFromAttrs(node.attrs) })];
+    }
+
+    case "verticalAlign": {
+      // A wrapping block node whose vertical alignment only really means
+      // something inside a table cell — convertTable() special-cases it
+      // there (unwrapping it and setting the cell's own verticalAlign).
+      // Reached here, it's in normal document flow, where Word has no
+      // equivalent to CSS vertical centering of a block — so just unwrap
+      // and render its content normally.
+      return convertBlocks(node.content, state, opts);
+    }
+
+    case "columnBlock": {
+      // Two (or more) side-by-side "column" children, roughly a CSS grid
+      // in the source editor. Word has no CSS-grid equivalent, but a
+      // borderless single-row table with one column per child fakes a
+      // side-by-side layout well.
+      const columnNodes = (node.content ?? []).filter((n) => canonicalNodeType(n.type, state) === "column");
+      if (columnNodes.length === 0) return [];
+
+      const columnCount = columnNodes.length;
+      const evenWidth = Math.floor(state.contentWidthTwips / columnCount);
+      const cells: TableCell[] = [];
+      for (const columnNode of columnNodes) {
+        const cellChildren = await convertBlocks(columnNode.content, state, opts);
+        cells.push(
+          new TableCell({
+            children: cellChildren.length ? cellChildren : [new Paragraph({ children: [] })],
+            width: { size: evenWidth, type: WidthType.DXA },
+          })
+        );
+      }
+      return [
+        new Table({
+          rows: [new TableRow({ children: cells })],
+          width: { size: evenWidth * columnCount, type: WidthType.DXA },
+          columnWidths: new Array(columnCount).fill(evenWidth),
+          borders: {
+            top: { style: BorderStyle.NONE, size: 0, color: "auto" },
+            bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
+            left: { style: BorderStyle.NONE, size: 0, color: "auto" },
+            right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+            insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+            insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+          },
+        }),
+      ];
+    }
+
+    case "column": {
+      // Only reached if a "column" node somehow appears outside a
+      // "columnBlock" — normally columnBlock consumes its children directly.
+      return convertBlocks(node.content, state, opts);
     }
 
     case "table": {
@@ -846,7 +1099,17 @@ async function convertBlockNode(
     }
 
     default: {
-      // Unknown node: try to render any inline text it might carry, then
+      // Unknown node type. If it looks like an image (has a resolvable URL
+      // attr, and no block content of its own — images are leaf nodes),
+      // treat it as one automatically. This covers custom/resizable image
+      // extensions that use a node type name other than "image" (e.g.
+      // "imageBlock", "resizableImage", "figure") without needing
+      // nodeAliases configured for them.
+      if (!node.content && extractImageSrc(node)) {
+        const run = await imageNodeToRun(node, state);
+        return [new Paragraph({ children: run ? [run] : [], alignment: imageAlignmentFromAttrs(node.attrs) })];
+      }
+      // Otherwise: try to render any inline text it might carry, then
       // recurse into children so we never silently drop content.
       if (node.text) {
         return [new Paragraph({ children: [new TextRun(node.text)] })];
@@ -1012,7 +1275,36 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
       const isHeader = pending.node.type === "tableHeader";
       const bg = pending.node.attrs?.backgroundColor;
 
-      const cellChildren = await convertBlocks(pending.node.content, state, {});
+      // custom-table-cell.ts adds textColor/textAlign/fontSize per cell —
+      // thread these down as defaults for any paragraph/run inside that
+      // doesn't already specify its own (explicit marks/attrs still win).
+      const cellDefaultAlignment = alignmentFromAttrs({ textAlign: pending.node.attrs?.textAlign });
+      const cellRunProps: { -readonly [K in keyof IRunOptions]?: IRunOptions[K] } = {};
+      if (pending.node.attrs?.textColor) cellRunProps.color = cleanHex(String(pending.node.attrs.textColor));
+      const cellFontPt = cssSizeToPt(pending.node.attrs?.fontSize);
+      if (cellFontPt) cellRunProps.size = halfPointsFromPt(cellFontPt);
+
+      // A vertical-align wrapper extension often wraps the *entire* cell
+      // content to center/bottom-align it — unwrap that one level and set
+      // the cell's real vertical alignment instead of rendering it as a
+      // nested block (which docx has no visual equivalent for anyway).
+      let cellContent = pending.node.content ?? [];
+      let verticalAlign: (typeof VerticalAlignTable)[keyof typeof VerticalAlignTable] | undefined;
+      if (cellContent.length === 1 && canonicalNodeType(cellContent[0].type, state) === "verticalAlign") {
+        const wrapper = cellContent[0];
+        verticalAlign =
+          wrapper.attrs?.alignment === "middle"
+            ? VerticalAlignTable.CENTER
+            : wrapper.attrs?.alignment === "bottom"
+            ? VerticalAlignTable.BOTTOM
+            : VerticalAlignTable.TOP;
+        cellContent = wrapper.content ?? [];
+      }
+
+      const cellChildren = await convertBlocks(cellContent, state, {
+        cellDefaultAlignment,
+        cellDefaultRunProps: Object.keys(cellRunProps).length ? cellRunProps : undefined,
+      });
 
       tableCells.push(
         new TableCell({
@@ -1020,6 +1312,7 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
           width: { size: width, type: WidthType.DXA },
           columnSpan: span > 1 ? span : undefined,
           verticalMerge: pending.rowSpan > 1 ? VerticalMergeType.RESTART : undefined,
+          verticalAlign,
           margins: cellMargins,
           shading: bg
             ? { type: ShadingType.CLEAR, fill: cleanHex(String(bg)), color: "auto" }
