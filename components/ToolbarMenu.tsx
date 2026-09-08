@@ -46,12 +46,16 @@ import {
   Superscript,
   List,
   Strikethrough,
-  Underline
+  Underline,
+  Upload,
+  ChevronRight
 } from 'lucide-react'
 import Image from 'next/image'
 import { useContext, useState } from 'react'
 import { ActiveMarks } from './Toolbar2'
 import { cn } from '@/lib/utils'
+import { DocxParser } from '@/lib/docx/docx-parser';
+import { tiptapToDocx, downloadDocx } from "@/lib/export-to-docx";
 
 const ToolbarMenu = () => {
   const {
@@ -70,7 +74,8 @@ const ToolbarMenu = () => {
     enableRuler,
     setEnableRuler,
     enableToolbar,
-    setEnableToolbar
+    setEnableToolbar,
+    colorSet
   } = useEditorStore();
 
   if (!editor) return null;
@@ -85,6 +90,58 @@ const ToolbarMenu = () => {
     }
     return true;
   };
+
+  const handleDocxUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !editor) return;
+
+    const docxParser = new DocxParser();
+    const result = await docxParser.parse(file);
+
+    editor.commands.setContent(result.html);
+  }
+
+  const exportToDocx = async () => {
+    await downloadDocx(editor.getJSON(), "document.docx");
+  }
+
+  const exportToPDF = async () => {
+    // TODO: update this when export to PDF is ready
+    await downloadDocx(editor.getJSON(), "document.docx");
+  }
+
+  const exportToJson = (filename = "editor-debug.json") => {
+    if (!editor) return;
+
+    const redact = (value: unknown): unknown => {
+      if (typeof value === "string" && value.length > 150) {
+        return `${value.slice(0, 60)}...[TRUNCATED — full length: ${value.length}]`;
+      }
+      if (Array.isArray(value)) return value.map(redact);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redact(v)])
+        );
+      }
+      return value;
+    };
+
+    const json = redact(editor.getJSON());
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   return (
     <div className='flex items-center'>
@@ -102,21 +159,32 @@ const ToolbarMenu = () => {
           <div className='relative group'>
             <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>File</button>
             <div className='hidden group-hover:flex absolute top-full flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
-              {/* <label className='block p-1'>
-                Upload
-                <input
-                  type="file"
-                  className="sr-only"
-                  onChange={handleDocxUpload}
-                />
-              </label> */}
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
-              >
-                <File className='size-3.75' />
-                New
-              </button>
+              <div className='relative group/sub'>
+                <button
+                  onClick={() => window.print()}
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                >
+                  <File className='size-3.75' />
+                  New
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className='hidden group-hover/sub:flex absolute left-full top-0 flex-col gap-y-0.5 z-20 min-w-50 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Blank Document
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    From Service Template
+                  </button>
+                </div>
+              </div>
               <button
                 onClick={() => window.print()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
@@ -124,6 +192,15 @@ const ToolbarMenu = () => {
                 <Folder className='size-3.75' />
                 Open
               </button>
+              <label className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'>
+                <Upload className='size-3.75' />
+                Upload docx
+                <input
+                  type="file"
+                  className="sr-only"
+                  onChange={handleDocxUpload}
+                />
+              </label>
               <button
                 onClick={() => window.print()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
@@ -139,13 +216,53 @@ const ToolbarMenu = () => {
                 <Pencil className='size-3.75' />
                 Rename
               </button>
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <Download className='size-3.75' />
-                Download
-              </button>
+              <div className='relative group/sub'>
+                <button
+                  onClick={() => window.print()}
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                >
+                  <Download className='size-3.75' />
+                  Download
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className='hidden group-hover/sub:flex absolute left-full top-0 flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    MS Word Document (.docx)
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    PDF Document (.pdf)
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Plain Text (.txt)
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Html Web Format (.html, zip)
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    JSON Structured Format (.json)
+                  </button>
+                </div>
+              </div>
               <button
                 onClick={() => window.print()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
@@ -207,28 +324,90 @@ const ToolbarMenu = () => {
                 Paste
               </button>
               <div className="h-px border-b border-gray-200 w-full" />
-              <label
-                className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
-              >
-                <Highlighter className="size-3.75" />
-                Highlight
-                <input
-                  type="color"
-                  className="sr-only"
-                  onChange={(e) => editor?.chain()?.focus()?.toggleHighlight({ color: e.target.value })?.run()}
-                />
-              </label>
-              <label
-                className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
-              >
-                <Baseline className="size-4" />
-                Font color
-                <input
-                  type="color"
-                  className="sr-only"
-                  onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
-                />
-              </label>
+              <div className='relative group/sub'>
+                <button
+                  className="relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  <Highlighter className="size-3.75" />
+                  Highlight
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className='hidden group-hover/sub:block absolute left-full -top-4 py-2.5 px-3 rounded-lg shadow-lg bg-white'>
+                  <div className='flex flex-col gap-y-0.75 p-1'>
+                    {colorSet.map((colors, index) => (
+                      <div
+                        key={index}
+                        className='flex items-center gap-x-0.75'
+                      >
+                        {colors.map(color => (
+                          <button
+                            key={color}
+                            className='size-5 rounded-full border border-gray-300'
+                            style={{
+                              backgroundColor: `${color}`
+                            }}
+                            onClick={() => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
+                          />
+                        )).reverse()}
+                      </div>
+                    ))}
+                  </div>
+                  <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                    <label
+                      className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                    >
+                      Custom Color
+                      <input
+                        type="color"
+                        className="sr-only absolute left-full -top-4 shadow-lg"
+                        onChange={(e) => editor?.chain()?.focus()?.toggleHighlight({ color: e.target.value })?.run()}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className='relative group/sub'>
+                <button
+                  className="relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  <Baseline className="size-4" />
+                  Font color
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className='hidden group-hover/sub:block absolute left-full -top-4 py-2.5 px-3 rounded-lg shadow-lg bg-white'>
+                  <div className='flex flex-col gap-y-0.75 p-1'>
+                    {colorSet.map((colors, index) => (
+                      <div
+                        key={index}
+                        className='flex items-center gap-x-0.75'
+                      >
+                        {colors.map(color => (
+                          <button
+                            key={color}
+                            className='size-5 rounded-full border border-gray-300'
+                            style={{
+                              backgroundColor: `${color}`
+                            }}
+                            onClick={() => editor?.chain()?.focus()?.setColor(color)?.run()}
+                          />
+                        )).reverse()}
+                      </div>
+                    ))}
+                  </div>
+                  <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                    <label
+                      className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                    >
+                      Custom Color
+                      <input
+                        type="color"
+                        className="sr-only absolute left-full -top-4 shadow-lg"
+                        onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
               <button
                 onClick={handleCopyFormat}
                 className={cn(
@@ -253,7 +432,7 @@ const ToolbarMenu = () => {
               <button
                 onClick={selectCurrentText}
                 disabled={isBlockEmpty()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:cursor-not-allowed'
+                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <SquareDashed className='size-3.75' />
                 Select all
@@ -466,22 +645,126 @@ const ToolbarMenu = () => {
                 Strikethrough
               </button>
               <div className="h-px border-b border-gray-200 w-full" />
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <AlignJustify className='size-3.75' />
-                Paragraph styles
-                {/* TODO: add options */}
-              </button>
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <ListChevronsUpDownIcon className='size-3.75' />
-                Line spacing
-                {/* TODO: add options */}
-              </button>
+              <div className='relative group/sub'>
+                <button
+                  onClick={() => window.print()}
+                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                >
+                  <ListChevronsUpDownIcon className='size-3.75' />
+                  Line spacing
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className="absolute left-full top-0 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                  {['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((spacing) => (
+                    <button
+                      key={spacing}
+                      type="button"
+                      onClick={() => editor?.chain()?.focus()?.setLineHeight(spacing)?.run()}
+                      className={cn(
+                        'px-3 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded', 
+                        spacing === '1.0' ? 'rounded-tl-md rounded-tr-md' : '',
+                      )}
+                    >
+                      {spacing}
+                    </button>
+                  ))}
+                  <div className="h-px border-t border-zinc-100 dark:border-zinc-700" />
+                  <button
+                    type="button"
+                    onClick={() => editor?.chain()?.focus()?.unsetLineHeight()?.run()}
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 rounded rounded-bl-md rounded-br-md dark:hover:bg-zinc-700"
+                  >
+                    Reset text spacing
+                  </button>
+                </div>
+              </div>
+              <div className='relative group/sub'>
+                <button
+                  onClick={() => window.print()}
+                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                >
+                  <AlignLeft className='size-3.75' />
+                  Text alignment
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className="absolute left-full top-0 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Align Left
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Align Center
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Align Right
+                  </button>
+                </div>
+              </div>
+              <div className='relative group/sub'>
+                <button
+                  onClick={() => window.print()}
+                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                >
+                  <AlignJustify className='size-3.75' />
+                  Paragraph styles
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className="absolute left-full top-0 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Heading 1
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Heading 2
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Heading 3
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Heading 4
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Heading 5
+                  </button>
+                  <button
+                    // onClick={selectCurrentText}
+                    // disabled={isBlockEmpty()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Paragraph
+                  </button>
+                </div>
+              </div>
               <div className="h-px border-b border-gray-200 w-full" />
               <button
                 onClick={() => window.print()}
@@ -490,21 +773,6 @@ const ToolbarMenu = () => {
                 <List className='size-3.75' />
                 Bullet and numbering
                 {/* TODO: add optiions */}
-              </button>
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <AlignLeft className='size-3.75' />
-                Text alignment
-                {/* TODO: add options */}
-              </button>
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <Baseline className='size-3.75' />
-                Color
               </button>
               <button
                 onClick={() => window.print()}

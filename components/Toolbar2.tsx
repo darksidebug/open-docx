@@ -70,7 +70,8 @@ import {
   BetweenVerticalEnd,
   ListChevronsUpDownIcon,
   PencilRuler,
-  ListTodo
+  ListTodo,
+  ChevronRight
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import Dropdown from './ui/customs/Dropdown';
@@ -133,7 +134,8 @@ const Toolbar2 = () => {
     handlePasteFormat,
     formatBuffer,
     changeFontSizeStep,
-    applyCaseChange
+    applyCaseChange,
+    colorSet
   } = useEditorStore();
 
   const handleSetFontSize = useDebounce((size: string) => {
@@ -151,11 +153,11 @@ const Toolbar2 = () => {
     }
   };
 
-  // const exportToDocx = async () => {
-  //   await downloadDocx(editor.getJSON(), "document.docx");
-  // }
+  const exportToDocx = async () => {
+    await downloadDocx(editor.getJSON(), "document.docx");
+  }
 
-  function exportToDocx(filename = "editor-debug.json") {
+  function exportToDocx2(filename = "editor-debug.json") {
     if (!editor) return;
     const redact = (value: unknown): unknown => {
       if (typeof value === "string" && value.length > 150) {
@@ -237,6 +239,10 @@ const Toolbar2 = () => {
           >
             <Scissors className="size-4" />
           </button>
+          <label>
+            ipload
+            <input type="file" name="file" onChange={handleDocxUpload} className='sr-only' id="" />
+          </label>
 
           <button
             type="button"
@@ -457,7 +463,7 @@ const Toolbar2 = () => {
           >
             <PaintRoller className="size-4" />
           </button>
-          <label className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Highlight Color">
+          {/* <label className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Highlight Color">
             <Highlighter className="size-4" />
             <input
               type="color"
@@ -472,7 +478,89 @@ const Toolbar2 = () => {
               className="sr-only"
               onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
             />
-          </label>
+          </label> */}
+          <div className='relative group/sub'>
+            <button
+              className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
+              title="Highlight Color"
+            >
+              <Highlighter className="size-3.75" />
+            </button>
+            <div className='hidden group-hover/sub:block absolute -left-6 top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg bg-white text-[13px]'>
+              <div className='flex flex-col gap-y-0.75 p-1'>
+                {colorSet.map((colors, index) => (
+                  <div
+                    key={index}
+                    className='flex items-center gap-x-0.75'
+                  >
+                    {colors.map(color => (
+                      <button
+                        key={color}
+                        className='size-5 rounded-full border border-gray-300'
+                        style={{
+                          backgroundColor: `${color}`
+                        }}
+                        onClick={() => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
+                      />
+                    )).reverse()}
+                  </div>
+                ))}
+              </div>
+              <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                <label
+                  className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  Custom Color
+                  <input
+                    type="color"
+                    className="sr-only absolute -left-58.75 -top-4 shadow-lg"
+                    onChange={(e) => editor?.chain()?.focus()?.toggleHighlight({ color: e.target.value })?.run()}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+          <div className='relative group/sub'>
+            <button
+              className="p-1.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
+              title="Font Color"
+            >
+              <Baseline className="size-4" />
+            </button>
+            <div className='hidden group-hover/sub:block absolute -left-6 top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg bg-white text-[13px]'>
+              <div className='flex flex-col gap-y-0.75 p-1'>
+                {colorSet.map((colors, index) => (
+                  <div
+                    key={index}
+                    className='flex items-center gap-x-0.75'
+                  >
+                    {colors.map(color => (
+                      <button
+                        key={color}
+                        className='size-5 rounded-full border border-gray-300'
+                        style={{
+                          backgroundColor: `${color}`
+                        }}
+                        onClick={() => editor?.chain()?.focus()?.setColor(color)?.run()}
+                      />
+                    )).reverse()}
+                  </div>
+                ))}
+              </div>
+              <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                <label
+                  className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  Custom Color
+                  <input
+                    type="color"
+                    className="sr-only absolute -left-58.75 -top-4 shadow-lg"
+                    onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
 
           <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
 

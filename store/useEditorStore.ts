@@ -33,6 +33,7 @@ interface EditorState {
   setEnableRuler: (enableRuler: boolean) => void;
   enableToolbar: boolean;
   setEnableToolbar: (enableToolbar: boolean) => void;
+  colorSet: string[][];
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -40,6 +41,104 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setEditor: (editor) => set({ editor }),
   formatBuffer: null,
   setFormatBuffer: (formatBuffer) => set({ formatBuffer }),
+  colorSet: [
+    [
+      '#FFFFFF',
+      '#F3F3F3',
+      '#EFEFEF',
+      '#D9D9D9',
+      '#CCCCCC',
+      '#B7B7B7',
+      '#999999',
+      '#666666',
+      '#434343',
+      '#000000'
+    ],
+    [
+      '#EA33F7',
+      '#8C1AF5',
+      '#0000F5',
+      '#5885E1',
+      '#75FBFD',
+      '#75FB4C',
+      '#FFFF54',
+      '#F19E38',
+      '#EA3323',
+      '#8B1A10'
+    ],
+    [
+      '#E6D2DB',
+      '#D8D2E7',
+      '#D3E1F1',
+      '#CCD9F5',
+      '#D3DFE2',
+      '#DCE9D5',
+      '#FDF2D0',
+      '#F8E6D0',
+      '#EECDCD',
+      '#DFBAB1'
+    ],
+    [
+      '#CEA8BC',
+      '#B2A7D2',
+      '#A7C4E5',
+      '#AAC1F0',
+      '#A9C3C8',
+      '#BCD6AC',
+      '#FBE6A3',
+      '#F2CDA2',
+      '#DE9D9B',
+      '#D08370',
+    ],
+    [
+      '#B87E9E',
+      '#8B7DBE',
+      '#7CA6D7',
+      '#789DE5',
+      '#80A4AE',
+      '#9DC384',
+      '#F9DA78',
+      '#ECB576',
+      '#D16D6A',
+      '#BD4B31',
+    ],
+    [
+      '#9B5277',
+      '#634FA2',
+      '#5083C1',
+      '#4B77D1',
+      '#54808C',
+      '#78A65A',
+      '#EAC451',
+      '#DA954B',
+      '#BB271A',
+      '#982B15',
+    ],
+    [
+      '#6B2246',
+      '#321D70',
+      '#25528F',
+      '#2854C5',
+      '#264E5A',
+      '#48752C',
+      '#B89230',
+      '#A96324',
+      '#8C1A11',
+      '#7A2917',
+    ],
+    [
+      '#46162F',
+      '#1E134A',
+      '#173660',
+      '#274482',
+      '#18333C',
+      '#314D1C',
+      '#7A611D',
+      '#704216',
+      '#5D0E07',
+      '#531607',
+    ]
+  ],
   handleCopyFormat: () => {
     const editor = get().editor;
 
