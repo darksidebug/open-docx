@@ -56,6 +56,9 @@ import { ActiveMarks } from './Toolbar2'
 import { cn } from '@/lib/utils'
 import { DocxParser } from '@/lib/docx/docx-parser';
 import { tiptapToDocx, downloadDocx } from "@/lib/export-to-docx";
+import { tiptapToPdf, downloadPdf } from "@/lib/export-to-pdf";
+import { downloadHtml } from "@/lib/export-to-html";
+import { importDocxFile } from "@/lib/import-docx";
 
 const ToolbarMenu = () => {
   const {
@@ -84,7 +87,7 @@ const ToolbarMenu = () => {
     if (!editor) return true;
     const { $from } = editor.state.selection;
     const parent = $from.parent;
-    
+
     if (parent.type.name === "paragraph" || parent.type.name === "heading") {
       return parent.textContent.trim() === "";
     }
@@ -95,10 +98,17 @@ const ToolbarMenu = () => {
     const file = event.target.files?.[0];
     if (!file || !editor) return;
 
-    const docxParser = new DocxParser();
-    const result = await docxParser.parse(file);
+    const { html, messages } = await importDocxFile(file);
+    editor.commands.setContent(html);
 
-    editor.commands.setContent(result.html);
+    // Don't discard these — they're real, useful warnings (unrecognized
+    // styles, images that couldn't be extracted, etc.)
+    if (messages.length) console.warn("Import warnings:", messages);
+
+    // const docxParser = new DocxParser();
+    // const result = await docxParser.parse(file);
+
+    // editor.commands.setContent(result.html);
   }
 
   const exportToDocx = async () => {
@@ -106,11 +116,10 @@ const ToolbarMenu = () => {
   }
 
   const exportToPDF = async () => {
-    // TODO: update this when export to PDF is ready
-    await downloadDocx(editor.getJSON(), "document.docx");
+    await downloadPdf(editor.getJSON(), "document.pdf");
   }
 
-  const exportToJson = (filename = "editor-debug.json") => {
+  const exportToJson = () => {
     if (!editor) return;
 
     const redact = (value: unknown): unknown => {
@@ -132,7 +141,7 @@ const ToolbarMenu = () => {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = filename;
+    link.download = "editor-debug.json";
 
     document.body.appendChild(link);
 
@@ -141,6 +150,12 @@ const ToolbarMenu = () => {
     document.body.removeChild(link);
 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const exportToHtml = () => {
+    if (!editor) return;
+
+    downloadHtml(editor, "document.html")
   }
 
   return (
@@ -225,38 +240,27 @@ const ToolbarMenu = () => {
                   Download
                   <ChevronRight className='absolute right-2 size-3.75' />
                 </button>
-                <div className='hidden group-hover/sub:flex absolute left-full top-0 flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+                <div className='hidden group-hover/sub:flex absolute left-full -top-4 flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={exportToDocx}
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
                   >
                     MS Word Document (.docx)
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={exportToPDF}
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     PDF Document (.pdf)
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={exportToHtml}
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
-                    Plain Text (.txt)
+                    Html Web Format (.html)
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
-                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-                  >
-                    Html Web Format (.html, zip)
-                  </button>
-                  <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={exportToJson}
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
                   >
                     JSON Structured Format (.json)

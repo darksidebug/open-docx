@@ -225,7 +225,7 @@ const Toolbar2 = () => {
         <div className="flex flex-wrap items-center gap-1 p-1.5 ">
           <button
             type="button"
-            onClick={exportToDocx}
+            onClick={() => document.execCommand('copy')}
             className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
             title="Copy (Ctrl+C)"
           >
@@ -239,11 +239,6 @@ const Toolbar2 = () => {
           >
             <Scissors className="size-4" />
           </button>
-          <label>
-            ipload
-            <input type="file" name="file" onChange={handleDocxUpload} className='sr-only' id="" />
-          </label>
-
           <button
             type="button"
             onClick={async () => {
@@ -486,7 +481,7 @@ const Toolbar2 = () => {
             >
               <Highlighter className="size-3.75" />
             </button>
-            <div className='hidden group-hover/sub:block absolute -left-6 top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg bg-white text-[13px]'>
+            <div className='hidden group-hover/sub:block absolute -left-6 top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px]'>
               <div className='flex flex-col gap-y-0.75 p-1'>
                 {colorSet.map((colors, index) => (
                   <div
@@ -527,7 +522,7 @@ const Toolbar2 = () => {
             >
               <Baseline className="size-4" />
             </button>
-            <div className='hidden group-hover/sub:block absolute -left-6 top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg bg-white text-[13px]'>
+            <div className='hidden group-hover/sub:block absolute -left-6 top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px]'>
               <div className='flex flex-col gap-y-0.75 p-1'>
                 {colorSet.map((colors, index) => (
                   <div
@@ -718,14 +713,14 @@ const Toolbar2 = () => {
           >
             <Quote className="size-3.5" />
           </button>
-          <button
+          {/* <button
             type="button"
             onClick={() => editor?.chain()?.focus()?.setDetails()?.run()}
             className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 ${editor?.isActive('details') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''}`}
             title="Details"
           >
             <ListCollapse className="size-4" />
-          </button>
+          </button> */}
 
           <button
             type="button"
@@ -736,27 +731,93 @@ const Toolbar2 = () => {
             <Columns2 className="size-4" />
           </button>
 
-          <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
+          {/* <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" /> */}
 
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.insertTable({ rows: 3, cols: 3, withHeaderRow: true })?.run()}
-            className="px-1.5 py-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 flex items-center gap-1 text-xs"
-            title="Insert Table (3x3)"
-          >
-            <TableIcon className="size-4" />
-          </button>
+          <div className='relative flex items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800'>
+            <button
+              type="button"
+              onClick={() => editor?.chain()?.focus()?.insertTable({ rows: 3, cols: 3, withHeaderRow: true })?.run()}
+              className="px-1.5 py-1 flex items-center gap-1 text-xs"
+              title="Insert Table (3x3)"
+            >
+              <TableIcon className="size-4" />
+            </button>
+            <div className='relative group'>
+              <button className='flex items-center px-px pr-0.75'>
+                <ChevronRight className='size-3.5 rotate-90' />
+              </button>
+              <div className="absolute -left-16 top-full min-w-45 text-[12px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20">
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().addColumnBefore().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer dark:hover:bg-zinc-700 rounded-tl-md rounded-tr-md"
+                >
+                  Insert Column Left
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().addColumnAfter().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer dark:hover:bg-zinc-700"
+                >
+                  Insert Column Right
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().addRowBefore().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer dark:hover:bg-zinc-700"
+                >
+                  Insert Row Before
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().addRowAfter().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer dark:hover:bg-zinc-700"
+                >
+                  Insert Row After
+                </button>
 
-          <button
+                <div className="h-px w-full border-t border-gray-200 dark:bg-zinc-800" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().deleteColumn().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-600 dark:hover:bg-zinc-700 cursor-pointer"
+                >
+                  Remove Column
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().deleteRow().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-600 dark:hover:bg-zinc-700 rounded-bl-md rounded-br-md cursor-pointer"
+                >
+                  Remove Row
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* <button
             type="button"
             onClick={() => editor.chain().focus().splitCell().run()}
             className="p-1.25 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-700 dark:text-zinc-300 disabled:opacity-40"
             title="Cell Border"
           >
             <SquareDashedTopSolid className='size-4' />
-          </button>
+          </button> */}
 
-          <div className="relative group">
+          {/* <div className="relative group">
             <button
               disabled={!editor?.isActive('table')}
               type="button"
@@ -771,13 +832,13 @@ const Toolbar2 = () => {
                   type="button"
                   onClick={() => {
                     editor.chain().focus().setVerticalAlign('top').run()
-                  }} 
+                  }}
                   className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Top</button>
                 <button type="button" onClick={() => editor.chain().focus().setVerticalAlign('middle').run()} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Middle</button>
                 <button type="button" onClick={() => editor.chain().focus().setVerticalAlign('bottom').run()} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Bottom</button>
               </div>
             )}
-          </div>
+          </div> */}
 
           <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
 

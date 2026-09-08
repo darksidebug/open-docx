@@ -38,7 +38,7 @@ export default function TableBubbleMenu({ containerRef }: { containerRef: React.
   const [isVisible, setIsVisible] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null)
-  const { editor } = useEditorStore();
+  const { editor, colorSet } = useEditorStore();
 
   useEffect(() => {
     if (!editor || !containerRef.current) return
@@ -117,7 +117,7 @@ export default function TableBubbleMenu({ containerRef }: { containerRef: React.
         >
           <MoreVertical className='size-4 rotate-90' />
         </button>
-        <div className="absolute left-0 top-full min-w-[180px] text-[12px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 min-w-32.5 overflow-hidden">
+        <div className="absolute -left-2 top-full min-w-45 text-[12px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 overflow-hidden">
           <button
             type="button"
             onClick={() => {
@@ -199,14 +199,6 @@ export default function TableBubbleMenu({ containerRef }: { containerRef: React.
           title="Undo Merge (Split Cell)"
         >
           <TableCellsSplit className='size-4' />
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().splitCell().run()}
-          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-700 dark:text-zinc-300 disabled:opacity-40"
-          title="Cell Border"
-        >
-          <SquareDashedTopSolid className='size-4' />
         </button>
       </div>
 
@@ -296,43 +288,44 @@ export default function TableBubbleMenu({ containerRef }: { containerRef: React.
         )}
       </div>
 
-      <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-0.5" />
-
-      {/* Text and Fill Color */}
-      <div className="flex items-center gap-1">
-        <label className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Background Color">
+      <div className='relative group'>
+        <button className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Background Color">
           <PaintBucket className='size-4' />
-          <input
-            type="color"
-            onChange={(e) => editor.chain().focus().setCellAttribute('backgroundColor', e.target.value).run()}
-            className="sr-only"
-          />
-        </label>
-
-        <label
-          className={cn(
-            "p-1 rounded dark:hover:bg-zinc-800",
-            !hasSelection ? 'hover:bg-transparent opacity-40 cursor-not-allowed' : 'hover:bg-zinc-200 cursor-pointer'
-          )}
-          title="Highlight Color"
-        >
-          <Highlighter className="w-4 h-4" />
-          <input
-            disabled={!hasSelection}
-            type="color"
-            className="sr-only"
-            onChange={(e) => editor?.chain()?.focus()?.setHighlight({ color: e.target.value })?.run()}
-          />
-        </label>
-
-        <label className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Font Color">
-          <Baseline className="w-4 h-4" />
-          <input
-            type="color"
-            className="sr-only"
-            onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
-          />
-        </label>
+        </button>
+        <div className='hidden group-hover:block absolute -left-6 top-6 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px]'>
+          <div className='flex flex-col gap-y-0.75 p-1'>
+            {colorSet.map((colors, index) => (
+              <div
+                key={index}
+                className='flex items-center gap-x-0.75'
+              >
+                {colors.map(color => (
+                  <button
+                    key={color}
+                    className='size-5 rounded-full border border-gray-300'
+                    style={{
+                      backgroundColor: `${color}`
+                    }}
+                    onClick={() => editor?.chain()?.focus()?.setCellAttribute('backgroundColor', color)?.run()}
+                  />
+                )).reverse()}
+              </div>
+            ))}
+          </div>
+          {/* TODO: add support not to hide when cursor on the  */}
+          <div className='relative mt-3 pt-1 border-t border-gray-200'>
+            <label
+              className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+            >
+              Custom Color
+              <input
+                type="color"
+                className="sr-only absolute -left-58.75 -top-4 shadow-lg"
+                onChange={(e) => editor?.chain()?.focus()?.setCellAttribute('backgroundColor', e.target.value)?.run()}
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-0.5" />
