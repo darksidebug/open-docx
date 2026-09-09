@@ -48,7 +48,13 @@ import {
   Strikethrough,
   Underline,
   Upload,
-  ChevronRight
+  ChevronRight,
+  AlignCenter,
+  AlignRight,
+  ListOrdered,
+  ListTodo,
+  Signature,
+  Paperclip
 } from 'lucide-react'
 import Image from 'next/image'
 import { useContext, useState } from 'react'
@@ -78,8 +84,11 @@ const ToolbarMenu = () => {
     setEnableRuler,
     enableToolbar,
     setEnableToolbar,
-    colorSet
+    colorSet,
+    documentName,
+    setDocumentName
   } = useEditorStore();
+  const [isEditingDocName, setIsEditingDocName] = useState(false);
 
   if (!editor) return null;
 
@@ -98,17 +107,10 @@ const ToolbarMenu = () => {
     const file = event.target.files?.[0];
     if (!file || !editor) return;
 
-    const { html, messages } = await importDocxFile(file);
-    editor.commands.setContent(html);
+    const docxParser = new DocxParser();
+    const result = await docxParser.parse(file);
 
-    // Don't discard these — they're real, useful warnings (unrecognized
-    // styles, images that couldn't be extracted, etc.)
-    if (messages.length) console.warn("Import warnings:", messages);
-
-    // const docxParser = new DocxParser();
-    // const result = await docxParser.parse(file);
-
-    // editor.commands.setContent(result.html);
+    editor.commands.setContent(result.html);
   }
 
   const exportToDocx = async () => {
@@ -116,6 +118,7 @@ const ToolbarMenu = () => {
   }
 
   const exportToPDF = async () => {
+    console.log('object', editor.getJSON())
     await downloadPdf(editor.getJSON(), "document.pdf");
   }
 
@@ -169,11 +172,32 @@ const ToolbarMenu = () => {
         />
       </div>
       <div className=''>
-        <div className="ml-2 text-lg">Untitled document</div>
+        {isEditingDocName && (
+          <input
+            onChange={e => {
+              const { value } = e.target;
+              setDocumentName(value);
+            }}
+            onBlur={() => setIsEditingDocName(false)}
+            value={documentName}
+            className='ml-2 text-lg focus:outline-0'
+            autoFocus
+          />
+        )}
+
+        {!isEditingDocName && (
+          <div
+            className="ml-2 text-lg max-w-62.5 truncate"
+            onClick={() => setIsEditingDocName(true)}
+            title={documentName}
+          >
+            {documentName}
+          </div>
+        )}
         <div className="flex items-center gap-0.5 text-[13px]">
           <div className='relative group'>
-            <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>File</button>
-            <div className='hidden group-hover:flex absolute top-full flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+            <button className='px-2 py-0.5 rounded hover:bg-gray-200'>File</button>
+            <div className='hidden group-hover:flex absolute -left-2 top-full flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
               <div className='relative group/sub'>
                 <button
                   onClick={() => window.print()}
@@ -285,17 +309,17 @@ const ToolbarMenu = () => {
             </div>
           </div>
           <div className='relative group'>
-            <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>Edit</button>
-            <div className='hidden group-hover:flex absolute top-full flex-col gap-y-0.5 z-20 min-w-70 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+            <button className='px-2 py-0.5 rounded hover:bg-gray-200'>Edit</button>
+            <div className='hidden group-hover:flex absolute -left-2 top-full flex-col gap-y-0.5 z-20 min-w-70 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
               <button
-                onClick={() => document.execCommand('undo')}
+                onClick={() => editor?.chain()?.focus()?.undo()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
               >
                 <Undo2 className='size-3.75' />
                 Undo
               </button>
               <button
-                onClick={() => document.execCommand('redo')}
+                onClick={() => editor?.chain()?.focus()?.redo()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <Redo2 className='size-3.75' />
@@ -330,7 +354,7 @@ const ToolbarMenu = () => {
               <div className="h-px border-b border-gray-200 w-full" />
               <div className='relative group/sub'>
                 <button
-                  className="relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                  className="relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100"
                 >
                   <Highlighter className="size-3.75" />
                   Highlight
@@ -372,7 +396,7 @@ const ToolbarMenu = () => {
               </div>
               <div className='relative group/sub'>
                 <button
-                  className="relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+                  className="relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100"
                 >
                   <Baseline className="size-4" />
                   Font color
@@ -460,14 +484,17 @@ const ToolbarMenu = () => {
             </div>
           </div>
           <div className='relative group'>
-            <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>View</button>
-            <div className='hidden group-hover:flex absolute top-full flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+            <button className='px-2 py-0.5 rounded hover:bg-gray-200'>View</button>
+            <div className='hidden group-hover:flex absolute -left-2 top-full flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
               <button
-                onClick={() => setEnableImageBubble(!enableImageBubble)}
+                onClick={() => {
+                  setEnableImageBubble(!enableImageBubble);
+                  editor.commands.setBubbleVisibility(!enableImageBubble)
+                }}
                 className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
               >
                 <RotateCwSquare className='size-3.75' />
-                Image bubble
+                {enableImageBubble ? 'Hide' : 'Show'} image bubble
                 <span className={cn(
                     'absolute right-4 size-1.5 rounded-full bg-blue-500',
                     enableImageBubble ? 'bg-blue-500' : 'bg-gray-400'
@@ -479,7 +506,7 @@ const ToolbarMenu = () => {
                 className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <BetweenVerticalEnd className='size-3.75' />
-                Table bubble
+                {enableTableBubble ? 'Hide' : 'Show'} table bubble
                 <span className={cn(
                     'absolute right-4 size-1.5 rounded-full bg-blue-500',
                     enableTableBubble ? 'bg-blue-500' : 'bg-gray-400'
@@ -491,7 +518,7 @@ const ToolbarMenu = () => {
                 className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <Bubbles className='size-3.75' />
-                Text bubble
+                {enableTextBubble ? 'Hide' : 'Show'} text bubble
                 <span className={cn(
                     'absolute right-4 size-1.5 rounded-full bg-blue-500',
                     enableTextBubble ? 'bg-blue-500' : 'bg-gray-400'
@@ -503,7 +530,7 @@ const ToolbarMenu = () => {
                 className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <Ruler className='size-3.75' />
-                Show ruler
+                {enableRuler ? 'Hide' : 'Show'} show ruler
                 <span className={cn(
                     'absolute right-4 size-1.5 rounded-full bg-blue-500',
                     enableRuler ? 'bg-blue-500' : 'bg-gray-400'
@@ -515,7 +542,7 @@ const ToolbarMenu = () => {
                 className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <ToolCase className='size-3.75' />
-                Show toolbar
+                {enableToolbar ? 'Hide' : 'Show'} show toolbar
                 <span className={cn(
                     'absolute right-4 size-1.5 rounded-full bg-blue-500',
                     enableToolbar ? 'bg-blue-500' : 'bg-gray-400'
@@ -534,8 +561,8 @@ const ToolbarMenu = () => {
             </div>
           </div>
           <div className='relative group'>
-            <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>Insert</button>
-            <div className='hidden group-hover:flex absolute top-full flex-col gap-y-0.5 z-20 min-w-70 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+            <button className='px-2 py-0.5 rounded hover:bg-gray-200'>Insert</button>
+            <div className='hidden group-hover:flex absolute -left-2 top-full flex-col gap-y-0.5 z-20 min-w-70 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
               <button
                 onClick={() => window.print()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
@@ -571,13 +598,6 @@ const ToolbarMenu = () => {
                 <Code className='size-3.75' />
                 Code block
               </button>
-              <button
-                onClick={() => editor?.chain()?.focus()?.setDetails()?.run()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <ListCollapse className='size-3.75' />
-                Detail view
-              </button>
               <div className="h-px border-b border-gray-200 w-full" />
               <button
                 onClick={() => editor?.chain()?.focus()?.unsetSubscript()?.toggleSuperscript()?.run()}
@@ -610,39 +630,54 @@ const ToolbarMenu = () => {
               </button>
               <button
                 onClick={() => editor?.commands.setPageBreak()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <SquareCenterlineDashedVertical className='size-3.75' />
                 Page break
               </button>
+              <div className="h-px border-b border-gray-200 w-full" />
+              <button
+                onClick={() => editor?.chain()?.focus()?.toggleCodeBlock()?.run()}
+                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+              >
+                <Signature className='size-3.75' />
+                eSignature
+              </button>
+              <button
+                onClick={() => editor?.chain()?.focus()?.toggleCodeBlock()?.run()}
+                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+              >
+                <Paperclip className='size-3.75' />
+                Attach file
+              </button>
             </div>
           </div>
           <div className='relative group'>
-            <button className='px-2 py-0.5 rounded hover:bg-gray-200 cursor-pointer'>Format</button>
-            <div className='hidden group-hover:flex absolute top-full flex-col gap-y-0.5 z-20 min-w-70 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
+            <button className='px-2 py-0.5 rounded hover:bg-gray-200'>Format</button>
+            <div className='hidden group-hover:flex absolute -left-2 top-full flex-col gap-y-0.5 z-20 min-w-70 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
               <button
-                onClick={() => window.print()}
+                onClick={() => editor?.chain()?.focus()?.toggleBold()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
               >
                 <Bold className='size-3.75' />
                 Bold text
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => editor?.chain()?.focus()?.toggleItalic()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <Italic className='size-3.75' />
                 Italic
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => editor?.chain()?.focus()?.toggleUnderline()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <Underline className='size-3.75' />
                 Underline
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => editor?.chain()?.focus()?.toggleStrike()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
               >
                 <Strikethrough className='size-3.75' />
@@ -651,21 +686,20 @@ const ToolbarMenu = () => {
               <div className="h-px border-b border-gray-200 w-full" />
               <div className='relative group/sub'>
                 <button
-                  onClick={() => window.print()}
-                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100'
                 >
                   <ListChevronsUpDownIcon className='size-3.75' />
                   Line spacing
                   <ChevronRight className='absolute right-2 size-3.75' />
                 </button>
-                <div className="absolute left-full top-0 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                <div className="absolute left-full -top-2 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
                   {['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((spacing) => (
                     <button
                       key={spacing}
                       type="button"
                       onClick={() => editor?.chain()?.focus()?.setLineHeight(spacing)?.run()}
                       className={cn(
-                        'px-3 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded', 
+                        'px-3 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer', 
                         spacing === '1.0' ? 'rounded-tl-md rounded-tr-md' : '',
                       )}
                     >
@@ -676,7 +710,7 @@ const ToolbarMenu = () => {
                   <button
                     type="button"
                     onClick={() => editor?.chain()?.focus()?.unsetLineHeight()?.run()}
-                    className="px-3 py-1.25 text-left hover:bg-zinc-100 rounded rounded-bl-md rounded-br-md dark:hover:bg-zinc-700"
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 rounded rounded-bl-md rounded-br-md dark:hover:bg-zinc-700 cursor-pointer"
                   >
                     Reset text spacing
                   </button>
@@ -685,84 +719,121 @@ const ToolbarMenu = () => {
               <div className='relative group/sub'>
                 <button
                   onClick={() => window.print()}
-                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100'
                 >
-                  <AlignLeft className='size-3.75' />
+                  {(() => {
+                    if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'center') {
+                      return <AlignCenter className="size-3.75" />;
+                    }
+        
+                    if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'right') {
+                      return <AlignRight className="size-3.75" />;
+                    }
+
+                    if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'justify') {
+                      return <AlignJustify className="size-3.75" />;
+                    }
+        
+                    return <AlignLeft className="size-3.75" />;
+                  })()}
                   Text alignment
                   <ChevronRight className='absolute right-2 size-3.75' />
                 </button>
-                <div className="absolute left-full top-0 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                <div className="absolute left-full -top-2 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => editor?.chain()?.focus()?.setTextAlign('left')?.run()}
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
                   >
                     Align Left
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => editor?.chain()?.focus()?.setTextAlign('center')?.run()}
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     Align Center
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
-                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                    onClick={() => editor?.chain()?.focus()?.setTextAlign('right')?.run()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     Align Right
+                  </button>
+                  <button
+                    onClick={() => editor?.chain()?.focus()?.setTextAlign('justify')?.run()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Justify Text
                   </button>
                 </div>
               </div>
               <div className='relative group/sub'>
                 <button
-                  onClick={() => window.print()}
-                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100'
                 >
                   <AlignJustify className='size-3.75' />
                   Paragraph styles
                   <ChevronRight className='absolute right-2 size-3.75' />
                 </button>
-                <div className="absolute left-full top-0 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                <div className="absolute left-full -top-2 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => {
+                      editor?.chain()?.focus()?.unsetAllMarks()?.run();
+                      editor?.chain()?.focus()
+                        ?.toggleHeading({ level: 1 })
+                        ?.run();
+                    }}  
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
                   >
                     Heading 1
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => {
+                      editor?.chain()?.focus()?.unsetAllMarks()?.run();
+                      editor?.chain()?.focus()
+                        ?.toggleHeading({ level: 2 })
+                        ?.run();
+                    }} 
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     Heading 2
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => {
+                      editor?.chain()?.focus()?.unsetAllMarks()?.run();
+                      editor?.chain()?.focus()
+                        ?.toggleHeading({ level: 3 })
+                        ?.run();
+                    }} 
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     Heading 3
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => {
+                      editor?.chain()?.focus()?.unsetAllMarks()?.run();
+                      editor?.chain()?.focus()
+                        ?.toggleHeading({ level: 4 })
+                        ?.run();
+                    }} 
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     Heading 4
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => {
+                      editor?.chain()?.focus()?.unsetAllMarks()?.run();
+                      editor?.chain()?.focus()
+                        ?.toggleHeading({ level: 4 })
+                        ?.run();
+                    }} 
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                   >
                     Heading 5
                   </button>
                   <button
-                    // onClick={selectCurrentText}
-                    // disabled={isBlockEmpty()}
+                    onClick={() => {
+                      editor?.chain()?.focus()?.setParagraph()?.run();
+                    }} 
                     className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
                   >
                     Paragraph
@@ -770,42 +841,179 @@ const ToolbarMenu = () => {
                 </div>
               </div>
               <div className="h-px border-b border-gray-200 w-full" />
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <List className='size-3.75' />
-                Bullet and numbering
-                {/* TODO: add optiions */}
-              </button>
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <IndentIncrease className='size-3.75' />
-                Indentation
-                {/* TODO: add option */}
-              </button>
+              <div className='relative group/sub'>
+                <button
+                  onClick={() => window.print()}
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100'
+                >
+                  {(() => {
+                    if (editor.isActive('bulletList')) {
+                      return <List className='size-3.75' />
+                    }
+
+                    if (editor?.isActive('orderedList')) {
+                      return <ListOrdered className="size-3.75" />
+                    }
+
+                    return <ListTodo className="size-3.75" />
+                  })()}
+                  Bullet and numbering
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                <div className="absolute left-full -top-2 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                  <button
+                    onClick={() => editor?.chain()?.focus()?.toggleBulletList()?.run()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Unordered List
+                  </button>
+                  <button
+                    onClick={() => editor?.chain()?.focus()?.toggleOrderedList().run()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    Ordered List
+                  </button>
+                  <button
+                    onClick={() => editor?.chain()?.focus()?.toggleTaskList().run()}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                  >
+                    Task List
+                  </button>
+                </div>
+              </div>
+              <div className='relative group/sub'>
+                <button
+                  disabled={!(editor.isActive('bulletList') || editor.isActive('orderedList'))}
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed'
+                >
+                  <IndentIncrease className='size-3.75' />
+                  Indentation
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                {(editor.isActive('bulletList') || editor.isActive('orderedList')) && (
+                  <div className="absolute left-full -top-2 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                    <button
+                      onClick={() => editor?.chain()?.focus()?.sinkListItem('listItem')?.run()}
+                      className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                    >
+                      Increase indentation
+                    </button>
+                    <button
+                      onClick={() => editor?.chain()?.focus()?.liftListItem('listItem')?.run()}
+                      className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                    >
+                      Decrease indentation
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="h-px border-b border-gray-200 w-full" />
+              <div className='relative group/sub'>
+                <button
+                  disabled={!editor.isActive('table')}
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed'
+                >
+                  <Table className='size-3.75' />
+                  Table
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                {editor.isActive('table') && (
+                  <div className="absolute left-full -top-4 p-0.5 min-w-45 text-[12px] hidden group-hover/sub:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editor.chain().focus().addColumnBefore().run()
+                      }}
+                      className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer dark:hover:bg-zinc-700 rounded rounded-tl-md rounded-tr-md"
+                    >
+                      Insert Column Left
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editor.chain().focus().addColumnAfter().run()
+                      }}
+                      className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded"
+                    >
+                      Insert Column Right
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editor.chain().focus().addRowBefore().run()
+                      }}
+                      className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded"
+                    >
+                      Insert Row Before
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editor.chain().focus().addRowAfter().run()
+                      }}
+                      className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded"
+                    >
+                      Insert Row After
+                    </button>
+
+                    <div className="h-px w-full border-t border-gray-200 dark:bg-zinc-800" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editor.chain().focus().deleteColumn().run()
+                      }}
+                      className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-600 rounded cursor-pointer"
+                    >
+                      Remove Column
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editor.chain().focus().deleteRow().run()
+                      }}
+                      className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-600 rounded rounded-bl-md rounded-br-md cursor-pointer"
+                    >
+                      Remove Row
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className='relative group/sub'>
+                <button
+                  disabled={!editor.isActive('customImage')}
+                  className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:bg-transparent'
+                >
+                  <ImageIcon className='size-3.75' />
+                  Image
+                  <ChevronRight className='absolute right-2 size-3.75' />
+                </button>
+                {editor.isActive('customImage') && (
+                  <div className="absolute left-full -top-2 min-w-37.5 text-[13px] hidden group-hover/sub:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg z-20 overflow-hidden">
+                    <button
+                      onClick={() => editor?.commands.setImageAlignment('left')}
+                      className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
+                    >
+                      Align Left
+                    </button>
+                    <button
+                      onClick={() => editor?.commands.setImageAlignment('center')}
+                      className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                    >
+                      Align Center
+                    </button>
+                    <button
+                      onClick={() => editor?.commands.setImageAlignment('right')}
+                      className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
+                    >
+                      Align Right
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="h-px border-b border-gray-200 w-full" />
               <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <Table className='size-3.75' />
-                Table
-                {/* TODO: add option */}
-              </button>
-              <button
-                onClick={() => window.print()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                <ImageIcon className='size-3.75' />
-                Image
-                {/* TODO: add option */}
-              </button>
-              <div className="h-px border-b border-gray-200 w-full" />
-              <button
-                onClick={() => window.print()}
+                onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
                 className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
               >
                 <Eraser className='size-3.75' />

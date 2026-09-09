@@ -14,7 +14,7 @@ import Color from '@tiptap/extension-color'
 import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
 import TextAlign from '@tiptap/extension-text-align'
-import TableBubbleMenu from '@/components/extensions/TableBubbleMenu';
+import TableBubbleMenu from '@/components/extensions/TableBubbleMenu copy';
 import CodeBlock from '@tiptap/extension-code-block'
 import { Details, DetailsSummary, DetailsContent } from '@/lib/extensions/details-extension'
 import { Column, ColumnBlock, columnPlaceholderText } from '@/lib/extensions/column-block';
@@ -115,6 +115,7 @@ const Editor = () => {
       DetailsContent,
       Placeholder.configure({
         includeChildren: true,
+        showOnlyCurrent: false,
         placeholder: ({ node, pos, editor }) => {
           if (node?.type?.name === 'detailsSummary') {
             return 'Summary'

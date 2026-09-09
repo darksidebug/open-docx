@@ -1,4 +1,6 @@
 import { Node, mergeAttributes, findParentNode } from '@tiptap/core'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { Editor } from '@tiptap/core'
 
 export const Column = Node.create({
   name: 'column',
@@ -35,7 +37,7 @@ export const Column = Node.create({
 export const ColumnBlock = Node.create({
   name: 'columnBlock',
   group: 'block',
-  content: 'column{2}', // exactly two columns
+  content: 'column+', // exactly two columns
   isolating: true,
 
   parseHTML() {
@@ -64,8 +66,147 @@ export const ColumnBlock = Node.create({
             // insertPos + 1 → into columnBlock, +1 → into column 1, +1 → into
             // its paragraph. Lands the cursor inside column 1's empty
             // paragraph instead of after the whole inserted block.
-            .focus(insertPos + 3)
+            .focus(insertPos)
             .run()
+        },
+
+      insertColumnBefore:
+        () =>
+        ({ state, tr, dispatch }) => {
+          const columnParent = findParentNode((n) => n.type.name === 'column')(state.selection)
+          const blockParent = findParentNode((n) => n.type.name === 'columnBlock')(state.selection)
+          if (!columnParent || !blockParent) return false
+
+          // Prevent adding if there are already 3 columns
+          if (blockParent.node.childCount >= 3) return false
+
+          if (dispatch) {
+            const insertPos = columnParent.pos
+
+            const newColumn = state.schema.nodes.column.create(
+              { index: 0 },
+              state.schema.nodes.paragraph.create()
+            )
+
+            tr.insert(insertPos, newColumn)
+
+            // Work against the document AFTER the insertion.
+            const doc = tr.doc
+
+            // The original columnBlock position remains valid because
+            // the insertion happens inside the columnBlock.
+            const updatedBlockParent = {
+              pos: blockParent.pos,
+              node: doc.nodeAt(blockParent.pos),
+            }
+
+            if (!updatedBlockParent.node) {
+              return false
+            }
+
+            let idx = 0
+
+            doc.nodesBetween(
+              updatedBlockParent.pos,
+              updatedBlockParent.pos + updatedBlockParent.node.nodeSize,
+              (node, pos) => {
+                if (node.type.name === 'column') {
+                  tr.setNodeAttribute(pos, 'index', idx)
+                  idx++
+                  return false
+                }
+
+                return true
+              }
+            )
+
+            dispatch(tr)
+          }
+          return true
+        },
+
+      insertColumnAfter:
+        () =>
+        ({ state, dispatch }) => {
+          const { $from } = state.selection
+
+          let blockParent: {
+            pos: number
+            node: any
+          } | null = null
+
+          for (let depth = $from.depth; depth > 0; depth--) {
+            const node = $from.node(depth)
+
+            if (node.type.name === 'columnBlock') {
+              blockParent = {
+                pos: $from.before(depth),
+                node,
+              }
+              break
+            }
+          }
+
+          if (!blockParent) {
+            return false
+          }
+
+          const columnDepth = $from.depth - 1
+
+          let currentColumnPos: number | null = null
+
+          for (let depth = $from.depth; depth > 0; depth--) {
+            if ($from.node(depth).type.name === 'column') {
+              currentColumnPos = $from.before(depth)
+              break
+            }
+          }
+
+          if (currentColumnPos === null) {
+            return false
+          }
+
+          const currentColumn = state.doc.nodeAt(currentColumnPos)
+
+          if (!currentColumn) {
+            return false
+          }
+
+          const newColumn = state.schema.nodes.column.create(
+            {
+              index: currentColumn.attrs.index + 1,
+            },
+            state.schema.nodes.paragraph.create()
+          )
+
+          const insertPos =
+            currentColumnPos + currentColumn.nodeSize
+
+          const tr = state.tr.insert(insertPos, newColumn)
+
+          // Re-read from the NEW transaction document.
+          const block = tr.doc.nodeAt(blockParent.pos)
+
+          if (!block || block.type.name !== 'columnBlock') {
+            return false
+          }
+
+          // Renumber direct column children.
+          let columnPos = blockParent.pos + 1
+
+          for (let i = 0; i < block.childCount; i++) {
+            const column = block.child(i)
+
+            if (column.type.name === 'column') {
+              tr.setNodeAttribute(columnPos, 'index', i)
+            }
+
+            columnPos += column.nodeSize
+          }
+
+          dispatch?.(tr)
+
+          return true
         },
 
       // optional convenience: escape the column block by placing cursor after it
@@ -85,7 +226,9 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     columnBlock: {
       insertColumns: () => ReturnType
-      exitColumns: () => ReturnType
+      exitColumns: () => ReturnType,
+      insertColumnBefore: () => ReturnType
+      insertColumnAfter: () => ReturnType
     }
   }
 }
@@ -108,16 +251,31 @@ export function columnPlaceholderText(
   editor: import('@tiptap/core').Editor
 ): string | null {
   try {
-    const doc = editor.state.doc
-    if (pos < 0 || pos > doc.content.size) return null
+    const $pos = editor.state.doc.resolve(pos)
 
-    const $pos = doc.resolve(pos)
-    if ($pos.parent.type.name === 'column') {
-      const index = $pos.parent.attrs.index ?? 0
-      return `Column ${index + 1}`
+    for (
+      let depth = $pos.depth;
+      depth > 0;
+      depth--
+    ) {
+      const ancestor = $pos.node(depth)
+
+      if (ancestor.type.name !== 'column') {
+        continue
+      }
+
+      const index = ancestor.attrs?.index
+
+      if (
+        typeof index === 'number' &&
+        Number.isFinite(index)
+      ) {
+        return `Column ${index + 1}`
+      }
     }
   } catch {
-    // doc/pos mismatch during an in-flight transaction — skip rather than crash
+    // Placeholder can run during intermediate transactions.
   }
+
   return null
 }

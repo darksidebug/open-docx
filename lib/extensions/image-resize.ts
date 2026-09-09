@@ -22,6 +22,7 @@ declare module "@tiptap/core" {
        * Set alignment for the selected image
        */
       setImageAlignment: (alignment: 'left' | 'center' | 'right') => ReturnType;
+      setBubbleVisibility: (visible?: boolean) => ReturnType
     };
   }
 }
@@ -75,6 +76,15 @@ export const CustomImageExtension = Node.create<ImageOptions>({
           };
         },
       },
+      showBubble: {
+        default: true,
+        parseHTML: (element) => element.getAttribute("data-show-bubble") !== "false",
+        renderHTML: (attributes) => {
+          return {
+            "data-show-bubble": attributes.showBubble,
+          };
+        },
+      },
     };
   },
 
@@ -111,6 +121,17 @@ export const CustomImageExtension = Node.create<ImageOptions>({
         (alignment: 'left' | 'center' | 'right') =>
         ({ commands }) => {
           return commands.updateAttributes(this.name, { alignment });
+        },
+
+      setBubbleVisibility:
+        (visible?: boolean) =>
+        ({ state, commands }) => {
+          const node = ('node' in state.selection ? (state.selection as any).node : null) || state.selection.$from.nodeAfter;
+          
+          const current = node?.attrs?.showBubble ?? true;
+          const nextValue = visible !== undefined ? visible : !current;
+          
+          return commands.updateAttributes(this.name, { showBubble: nextValue });
         },
     };
   },

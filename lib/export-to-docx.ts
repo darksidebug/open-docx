@@ -159,7 +159,7 @@ const DEFAULT_THEME: DocxTheme = {
   hrColor: "D4DBE5",
   headingSizesPt: { h1: 16.8, h2: 14.4, h3: 13.2, h4: 12, h5: 12, h6: 12 },
   headingSpacingTwips: { before: 240, after: 240 }, // 1rem = 16px = 12pt = 240 twips
-  tableMarginTwips: { before: 360, after: 360 }, // 1.5rem = 24px = 18pt = 360 twips
+  tableMarginTwips: { before: 5, after: 5 },
 };
 
 const DEFAULT_MARK_ALIASES: Record<string, string> = {
@@ -1386,7 +1386,7 @@ const LETTER = { width: 12240, height: 15840 }; // DXA
 const A4 = { width: 11906, height: 16838 }; // DXA
 
 async function buildDocxDocument(doc: TiptapDocument, options: ConvertOptions): Promise<Document> {
-  const marginInches = options.marginInches ?? 1;
+  const marginInches = options.marginInches ?? 0.5;
   const marginTwip = convertInchesToTwip(marginInches);
   const pageSize = options.pageSize === "A4" ? A4 : LETTER;
   const contentWidthTwips = pageSize.width - marginTwip * 2;

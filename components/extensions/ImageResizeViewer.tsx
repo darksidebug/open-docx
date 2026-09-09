@@ -7,11 +7,13 @@ import {
   MoveDiagonal,
   Trash2
 } from "lucide-react";
+import { useEditorStore } from "@/store/useEditorStore";
 
 const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
   const { node, updateAttributes, deleteNode, selected } = props;
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const { enableImageBubble } = useEditorStore();
 
   const alignment = node.attrs.alignment || "center";
   const width = node.attrs.width || "100%";
@@ -70,51 +72,53 @@ const ImageResizeViewer: React.FC<NodeViewProps> = (props) => {
           className="w-full h-auto block rounded"
         />
 
-        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 z-10 after:content-[''] after:absolute after:-top-4 after:left-0 after:right-0 after:h-4">
-          <button
-            type="button"
-            onClick={() => updateAttributes({ alignment: "left" })}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
-              alignment === "left" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
-            }`}
-            title="Align Left"
-          >
-            <AlignLeft className="size-4" />
-          </button>
+        {(node.attrs.showBubble && enableImageBubble) && (
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 z-10 after:content-[''] after:absolute after:-top-4 after:left-0 after:right-0 after:h-4">
+            <button
+              type="button"
+              onClick={() => updateAttributes({ alignment: "left" })}
+              className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
+                alignment === "left" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
+              }`}
+              title="Align Left"
+            >
+              <AlignLeft className="size-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => updateAttributes({ alignment: "center" })}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
-              alignment === "center" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
-            }`}
-            title="Align Center"
-          >
-            <AlignCenter className="size-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => updateAttributes({ alignment: "center" })}
+              className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
+                alignment === "center" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
+              }`}
+              title="Align Center"
+            >
+              <AlignCenter className="size-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => updateAttributes({ alignment: "right" })}
-            className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
-              alignment === "right" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
-            }`}
-            title="Align Right"
-          >
-            <AlignRight className="size-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => updateAttributes({ alignment: "right" })}
+              className={`p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 ${
+                alignment === "right" ? "text-blue-500 bg-zinc-100" : "text-zinc-600 dark:text-zinc-300"
+              }`}
+              title="Align Right"
+            >
+              <AlignRight className="size-4" />
+            </button>
 
-          <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1" />
 
-          <button
-            type="button"
-            onClick={deleteNode}
-            className="p-1 rounded hover:bg-red-520 text-red-500 hover:text-white dark:hover:bg-red-950/30"
-            title="Delete Image"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={deleteNode}
+              className="p-1 rounded hover:bg-red-520 text-red-500 hover:bg-red-500 hover:text-white dark:hover:bg-red-950/30"
+              title="Delete Image"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        )}
 
         <div
           onMouseDown={handleMouseDown}

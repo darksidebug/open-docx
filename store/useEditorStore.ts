@@ -34,11 +34,17 @@ interface EditorState {
   enableToolbar: boolean;
   setEnableToolbar: (enableToolbar: boolean) => void;
   colorSet: string[][];
+  documentName: string,
+  setDocumentName: (documentName: string) => void;
+  fontSizes: number[];
+  typographies: { label: string, value: number }[]
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   editor: null,
   setEditor: (editor) => set({ editor }),
+  documentName: 'Untitled document',
+  setDocumentName: (documentName: string) => set({ documentName }),
   formatBuffer: null,
   setFormatBuffer: (formatBuffer) => set({ formatBuffer }),
   colorSet: [
@@ -138,6 +144,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       '#5D0E07',
       '#531607',
     ]
+  ],
+  fontSizes: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 36, 48, 72, 96],
+  typographies: [
+    {
+      label: 'Heading 1',
+      value: 1
+    },
+    {
+      label: 'Heading 2',
+      value: 2
+    },
+    {
+      label: 'Heading 3',
+      value: 3
+    },
+    {
+      label: 'Heading 4',
+      value: 4
+    },
+    {
+      label: 'Heading 5',
+      value: 5
+    },
+    {
+      label: 'Paragraph',
+      value: 0
+    }
   ],
   handleCopyFormat: () => {
     const editor = get().editor;
@@ -277,5 +310,5 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   enableRuler: true,
   setEnableRuler: (enableRuler: boolean) => set({ enableRuler }),
   enableToolbar: true,
-  setEnableToolbar: (enableToolbar: boolean) => set({ enableToolbar })
+  setEnableToolbar: (enableToolbar: boolean) => set({ enableToolbar }),
 }));
