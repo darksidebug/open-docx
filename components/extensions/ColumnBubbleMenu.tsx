@@ -1,15 +1,41 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, { Ref, RefObject, useEffect, useRef, useState } from 'react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { Editor } from '@tiptap/core';
-import { Bold, Italic, Strikethrough, Code, AlignCenter, AlignRight, AlignJustify, AlignLeft, ListChevronsUpDownIcon, Pipette, PaintRoller, Highlighter, Baseline, List, ListOrdered, ListTodo, IndentIncrease, IndentDecrease, AArrowUp, AArrowDown, CaseSensitive, Columns2, ChevronRight } from 'lucide-react';
+import {
+  Bold,
+  Italic,
+  Strikethrough,
+  Code,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  AlignLeft,
+  ListChevronsUpDownIcon,
+  Pipette,
+  PaintRoller,
+  Highlighter,
+  Baseline,
+  List,
+  ListOrdered,
+  ListTodo,
+  IndentIncrease,
+  IndentDecrease,
+  AArrowUp,
+  AArrowDown,
+  CaseSensitive,
+  Columns2,
+  ChevronRight,
+  Eraser
+} from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useDebounce } from '@/hooks/useDebounce';
 import FontSize from '../ui/toolbars/FontSize';
 import FontFamily from '../ui/toolbars/FontFamily';
 import { cn } from '@/lib/utils';
 import Dropdown from '../ui/customs/Dropdown';
+import ColorUiPicker from '../ui/ColorUiPicker';
 
 export const ColumnBubbleMenu = () => {
   const {
@@ -21,9 +47,14 @@ export const ColumnBubbleMenu = () => {
     colorSet,
     typographies,
     applyCaseChange,
-    changeFontSizeStep
+    changeFontSizeStep,
+    clearCurrentBlockText
   } = useEditorStore();
   const [isScrolling, setIsScrolling] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const fontContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isOpened, setIsOpened] = useState(false);
+  const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
 
   const handleSetFontSize = useDebounce((size: string) => {
     editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
@@ -43,7 +74,7 @@ export const ColumnBubbleMenu = () => {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
@@ -99,7 +130,7 @@ export const ColumnBubbleMenu = () => {
             value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '13'}
             onChange={handleSetFontSize}
             items={fontSizes}
-            className='w-14'
+            className='w-12.5'
             title='Font Size'
           />
           <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mr-0.5 ml-1" />
@@ -117,7 +148,7 @@ export const ColumnBubbleMenu = () => {
               }
             }}
             items={typographies}
-            className='w-34.5'
+            className='w-29'
             title="Styles / Headings"
           />
           <button
@@ -137,7 +168,7 @@ export const ColumnBubbleMenu = () => {
             <AArrowDown className="size-3.75" />
           </button>
 
-          <div className="relative group">
+          <div className="relative group font-medium">
             <button type="button" className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Change Case">
               <CaseSensitive className="size-3.75" />
             </button>
@@ -212,7 +243,7 @@ export const ColumnBubbleMenu = () => {
           >
             <Strikethrough className="size-3.5" />
           </button>
-          <div className='relative top-0.5 group'>
+          <div className='relative top-0.5 group font-medium'>
             <button
               type="button"
               onClick={() => editor.chain().focus().toggleStrike().run()}
@@ -262,7 +293,7 @@ export const ColumnBubbleMenu = () => {
               </button>
             </div>
           </div>
-          <div className='relative group'>
+          <div className='relative group font-medium'>
             <button
               className='relative w-full flex items-center gap-x-2 text-left px-1.25 py-1 rounded hover:bg-zinc-200'
             >
@@ -291,7 +322,7 @@ export const ColumnBubbleMenu = () => {
               </button>
             </div>
           </div>
-          <div className='relative flex top-px items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800'>
+          <div className='relative flex top-px items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 font-medium'>
             <button
               onClick={() => {
                 editor.chain().focus().insertColumnAfter().run()
@@ -315,7 +346,7 @@ export const ColumnBubbleMenu = () => {
                   onClick={() => {
                     editor.chain().focus().insertColumnBefore().run()
                   }}
-                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700 rounded-tl-md rounded-tr-md"
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
                 >
                   Insert Column Before
                 </button>
@@ -327,6 +358,33 @@ export const ColumnBubbleMenu = () => {
                   className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
                 >
                   Insert Column After
+                </button>
+                <div className="w-full h-px border-t border-zinc-200 dark:bg-zinc-800 my-px" />
+                <button
+                  type="button"
+                  onClick={clearCurrentBlockText}
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
+                >
+                  Remove Text
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().deleteGridColumn().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
+                >
+                  Remove Column
+                </button>
+                <div className="w-full h-px border-t border-zinc-200 dark:bg-zinc-800 my-px" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().deleteColumnBlock().run()
+                  }}
+                  className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-500 cursor-pointer rounded dark:hover:bg-zinc-700"
+                >
+                  Delete Columns
                 </button>
               </div>
             </div>
@@ -384,36 +442,20 @@ export const ColumnBubbleMenu = () => {
             <IndentDecrease className="size-3.5" />
           </button>
           <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
-          <button
-            type="button"
-            onClick={handleCopyFormat}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
-              formatBuffer ? "bg-zinc-200 dark:bg-zinc-800 text-blue-500" : ""
-            }`}
-            title="Copy Format"
-          >
-            <Pipette className="size-3.5" />
-          </button>
 
-          <button
-            type="button"
-            onClick={handlePasteFormat}
-            disabled={!formatBuffer}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 disabled:hover:bg-transparent ${
-              !formatBuffer ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-            }`}
-            title="Paste Format"
-          >
-            <PaintRoller className="size-3.5" />
-          </button>
-          <div className='relative group/sub'>
+          <div className='relative group'>
             <button
-              className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
               title="Highlight Color"
             >
               <Highlighter className="size-3.5" />
             </button>
-            <div className='hidden group-hover/sub:block absolute top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
+            <div
+              className={cn(
+                'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+                isOpened ? 'block' : ''
+              )}
+            >
               <div className='flex flex-col gap-y-0.75 p-1'>
                 {colorSet.map((colors, index) => (
                   <div
@@ -433,28 +475,37 @@ export const ColumnBubbleMenu = () => {
                   </div>
                 ))}
               </div>
-              <div className='relative mt-3 pt-1 border-t border-gray-200'>
-                <label
-                  className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
-                >
-                  Custom Color
-                  <input
-                    type="color"
-                    className="sr-only absolute -left-58.75 -top-4 shadow-lg"
-                    onChange={(e) => editor?.chain()?.focus()?.toggleHighlight({ color: e.target.value })?.run()}
-                  />
-                </label>
+              <div ref={containerRef} className='relative mt-3 pt-1 border-t border-gray-200'>
+                <ColorUiPicker
+                  isOpen={isOpened}
+                  className='min-h-[250px] position-left'
+                  labelModifier={cn(
+                    'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                    isOpened ? 'bg-gray-100' : ''
+                  )}
+                  boundaryRef={containerRef as RefObject<HTMLDivElement>}
+                  colorAreaClass='h-31'
+                  onClick={() => {
+                    setIsOpened(state => !state)
+                  }}
+                  // onSelect={() => {}}
+                />
               </div>
             </div>
           </div>
           <div className='relative group'>
             <button
-              className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
               title="Font Color"
             >
               <Baseline className="size-3.5" />
             </button>
-            <div className='hidden group-hover:block absolute top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
+            <div
+              className={cn(
+                'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+                isFontSwatchOpened ? 'block' : ''
+              )}
+            >
               <div className='flex flex-col gap-y-0.75 p-1'>
                 {colorSet.map((colors, index) => (
                   <div
@@ -474,20 +525,32 @@ export const ColumnBubbleMenu = () => {
                   </div>
                 ))}
               </div>
-              <div className='relative mt-3 pt-1 border-t border-gray-200'>
-                <label
-                  className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
-                >
-                  Custom Color
-                  <input
-                    type="color"
-                    className="sr-only absolute -left-58.75 -top-4 shadow-lg"
-                    onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
-                  />
-                </label>
+              <div ref={fontContainerRef} className='relative mt-3 pt-1 border-t border-gray-200'>
+                <ColorUiPicker
+                  isOpen={isFontSwatchOpened}
+                  className='min-h-[250px] font-position-left'
+                  labelModifier={cn(
+                    'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                    isFontSwatchOpened ? 'bg-gray-100' : ''
+                  )}
+                  boundaryRef={fontContainerRef as RefObject<HTMLDivElement>}
+                  colorAreaClass='h-31'
+                  onClick={() => {
+                    setIsFontSwatchOpened(state => !state)
+                  }}
+                  // onSelect={() => {}}
+                />
               </div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
+            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
+            title="Clear Formatting"
+          >
+            <Eraser className="size-3.5" />
+          </button>
         </div>
       </div>
     </BubbleMenu>

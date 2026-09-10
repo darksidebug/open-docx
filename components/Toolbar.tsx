@@ -675,10 +675,25 @@ const Toolbar = () => {
                     type="button"
                     onClick={() => {
                       editor.chain().focus().setVerticalAlign('top').run()
-                    }} 
-                    className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Top</button>
-                  <button type="button" onClick={() => editor.chain().focus().setVerticalAlign('middle').run()} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Middle</button>
-                  <button type="button" onClick={() => editor.chain().focus().setVerticalAlign('bottom').run()} className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700">Align Bottom</button>
+                    }}
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    Align Top
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().setVerticalAlign('middle').run()}
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    Align Middle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().setVerticalAlign('bottom').run()}
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                  >
+                    Align Bottom
+                  </button>
                 </div>
               )}
             </div>
@@ -699,7 +714,7 @@ const Toolbar = () => {
             >
               <ImageIcon className="size-4" />
             </button>
-  
+
             <button
               type="button"
               onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}

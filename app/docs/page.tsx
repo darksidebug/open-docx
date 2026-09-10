@@ -33,15 +33,16 @@ const page = () => {
       <div className='mb-8 document-workspace'>
 
         {(() => {
+          console.log(editor?.isActive('table'))
+          if (enableTableBubble && editor?.isActive('table')) {
+            return <TableBubbleMenu />
+          }
+
           if (
-            editor?.isActive('columnBlock') ||
+            editor?.isActive('columnBlock') && !editor?.isActive('table') ||
             editor?.isActive('columnBlock') && !editor?.isActive('customImage')
           ) {
             return <ColumnBubbleMenu />
-          }
-
-          if (enableTableBubble && editor?.isActive('table')) {
-            return <TableBubbleMenu />
           }
 
           if (
@@ -54,7 +55,7 @@ const page = () => {
 
           return null;
         })()}
-        
+
         <Editor />
       </div>
     </div>

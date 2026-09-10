@@ -14,13 +14,10 @@ import Color from '@tiptap/extension-color'
 import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
 import TextAlign from '@tiptap/extension-text-align'
-import TableBubbleMenu from '@/components/extensions/TableBubbleMenu copy';
-import CodeBlock from '@tiptap/extension-code-block'
 import { Details, DetailsSummary, DetailsContent } from '@/lib/extensions/details-extension'
 import { Column, ColumnBlock, columnPlaceholderText } from '@/lib/extensions/column-block';
 import { PasteDefaultFont } from '@/lib/extensions/paste-default-font';
 import { Placeholder } from '@tiptap/extensions';
-import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import { LineHeightExtension } from '@/lib/extensions/line-height';
 import { PageBreak } from '@/lib/extensions/page-break';
 import { VerticalAlign } from '@/lib/extensions/vertical-align';
@@ -62,7 +59,14 @@ const Editor = () => {
       }
     },
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        codeBlock: {
+          enableTabIndentation: true,
+          HTMLAttributes: {
+            style: 'font-family: "JetBrains Mono", monospace;',
+          },
+        }
+      }),
       // SpellcheckerExtension.configure({
       //     proofreader: spellChecker,
       //     uiStrings: {
@@ -85,9 +89,7 @@ const Editor = () => {
       }),
       TextStyle,
       Color,
-      FontSize.configure({
-        
-      }),
+      FontSize,
       CustomImageExtension,
       TaskList,
       TaskItem.configure({
@@ -98,13 +100,6 @@ const Editor = () => {
       }),
       CustomTableCell,
       CustomTableHeader,
-      CodeBlock.configure({
-        enableTabIndentation: true,
-        HTMLAttributes: {
-          style: 'font-family: "JetBrains Mono", monospace;',
-        },
-      }),
-      HorizontalRule,
       Details.configure({
         persist: true,
         HTMLAttributes: {

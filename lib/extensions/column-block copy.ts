@@ -209,63 +209,6 @@ export const ColumnBlock = Node.create({
           return true
         },
 
-      deleteGridColumn:
-        () =>
-        ({ state, dispatch }) => {
-          const columnParent = findParentNode((n) => n.type.name === 'column')(state.selection)
-          const blockParent = findParentNode((n) => n.type.name === 'columnBlock')(state.selection)
-          if (!columnParent || !blockParent) return false
-
-          // A columnBlock needs at least one column (content: 'column+') --
-          // if this is the last one, remove the whole block instead of
-          // leaving an empty (schema-invalid) container behind.
-          if (blockParent.node.childCount <= 1) {
-            if (dispatch) {
-              const tr = state.tr.delete(blockParent.pos, blockParent.pos + blockParent.node.nodeSize)
-              dispatch(tr)
-            }
-            return true
-          }
-
-          if (dispatch) {
-            const tr = state.tr.delete(columnParent.pos, columnParent.pos + columnParent.node.nodeSize)
-
-            // Renumber the remaining columns' `index` attrs so they stay
-            // contiguous (0, 1, 2, ...) after the deletion -- same
-            // renumbering approach used by insertColumnBefore/After.
-            const doc = tr.doc
-            const updatedBlockNode = doc.nodeAt(blockParent.pos)
-
-            if (updatedBlockNode) {
-              let idx = 0
-              doc.nodesBetween(blockParent.pos, blockParent.pos + updatedBlockNode.nodeSize, (node, pos) => {
-                if (node.type.name === 'column') {
-                  tr.setNodeAttribute(pos, 'index', idx)
-                  idx++
-                  return false
-                }
-                return true
-              })
-            }
-
-            dispatch(tr)
-          }
-          return true
-        },
-
-      deleteColumnBlock:
-        () =>
-        ({ state, dispatch }) => {
-          const blockParent = findParentNode((n) => n.type.name === 'columnBlock')(state.selection)
-          if (!blockParent) return false
-
-          if (dispatch) {
-            const tr = state.tr.delete(blockParent.pos, blockParent.pos + blockParent.node.nodeSize)
-            dispatch(tr)
-          }
-          return true
-        },
-
       // optional convenience: escape the column block by placing cursor after it
       exitColumns:
         () =>
@@ -286,10 +229,6 @@ declare module '@tiptap/core' {
       exitColumns: () => ReturnType,
       insertColumnBefore: () => ReturnType
       insertColumnAfter: () => ReturnType
-      /** Removes just the current column. If it's the last one in its columnBlock, removes the whole block instead (a columnBlock can't be empty). */
-      deleteGridColumn: () => ReturnType
-      /** Removes the entire columnBlock (all of its columns) that the cursor is currently inside. */
-      deleteColumnBlock: () => ReturnType
     }
   }
 }

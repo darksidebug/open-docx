@@ -1250,7 +1250,7 @@ async function convertTable(tableNode: TiptapNode, state: ConvertState): Promise
   const tableWidthTwip = columnWidthsTwip.reduce((a, b) => a + b, 0);
 
   // `td, th { padding: 2px 5px }` → twips (15 twips per CSS px).
-  const cellMargins = { top: 30, bottom: 30, left: 75, right: 75 };
+  const cellMargins = { top: 15, bottom: 15, left: 45, right: 45 };
   const tableBorder = { style: BorderStyle.SINGLE, size: 4, color: state.theme.tableBorderColor };
 
   // rowSpanCarry[col] = remaining rows (including current) this column is still merged for.

@@ -24,7 +24,9 @@ import {
   IndentDecrease,
   AArrowUp,
   AArrowDown,
-  CaseSensitive
+  CaseSensitive,
+  Underline,
+  Eraser
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -65,7 +67,7 @@ export const TextBubbleMenu = () => {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       clearTimeout(scrollTimeout);
@@ -140,11 +142,11 @@ export const TextBubbleMenu = () => {
             <AArrowDown className="size-3.75" />
           </button>
 
-          <div className="relative group">
+          <div className="relative group font-medium">
             <button type="button" className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Change Case">
               <CaseSensitive className="size-3.75" />
             </button>
-            <div className="absolute left-0 top-full text-[13px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded shadow-lg z-20 min-w-32.5 overflow-hidden">
+            <div className="absolute left-0 top-full text-[13px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 min-w-32.5 overflow-hidden">
               <button
                 type="button"
                 onClick={() => applyCaseChange('sentence')}
@@ -207,6 +209,16 @@ export const TextBubbleMenu = () => {
           </button>
           <button
             type="button"
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
+              editor.isActive('underline') ? 'text-blue-500 bg-zinc-200 dark:bg-zinc-700' : ''
+            }`}
+            title="Underline"
+          >
+            <Underline className="size-3.5" />
+          </button>
+          <button
+            type="button"
             onClick={() => editor.chain().focus().toggleStrike().run()}
             className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
               editor.isActive('strike') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
@@ -215,7 +227,7 @@ export const TextBubbleMenu = () => {
           >
             <Strikethrough className="size-3.5" />
           </button>
-          <div className='relative top-0.5 group'>
+          <div className='relative top-0.5 group font-medium'>
             <button
               type="button"
               onClick={() => editor.chain().focus().toggleStrike().run()}
@@ -265,7 +277,7 @@ export const TextBubbleMenu = () => {
               </button>
             </div>
           </div>
-          <div className='relative group'>
+          <div className='relative group font-medium'>
             <button
               className='relative w-full flex items-center gap-x-2 text-left px-1.25 py-1 rounded hover:bg-zinc-200'
             >
@@ -347,7 +359,7 @@ export const TextBubbleMenu = () => {
             <IndentDecrease className="size-3.5" />
           </button>
           <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
-          <button
+          {/* <button
             type="button"
             onClick={handleCopyFormat}
             className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
@@ -368,15 +380,15 @@ export const TextBubbleMenu = () => {
             title="Paste Format"
           >
             <PaintRoller className="size-3.5" />
-          </button>
-          <div className='relative group/sub'>
+          </button> */}
+          <div className='relative group'>
             <button
-              className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
               title="Highlight Color"
             >
               <Highlighter className="size-3.5" />
             </button>
-            <div className='hidden group-hover/sub:block absolute top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
+            <div className='hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
               <div className='flex flex-col gap-y-0.75 p-1'>
                 {colorSet.map((colors, index) => (
                   <div
@@ -410,14 +422,14 @@ export const TextBubbleMenu = () => {
               </div>
             </div>
           </div>
-          <div className='relative group'>
+          <div className='relative top-px group'>
             <button
-              className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
               title="Font Color"
             >
               <Baseline className="size-3.5" />
             </button>
-            <div className='hidden group-hover:block absolute top-7 z-10 py-2.5 px-3 rounded-lg shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
+            <div className='hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
               <div className='flex flex-col gap-y-0.75 p-1'>
                 {colorSet.map((colors, index) => (
                   <div
@@ -451,6 +463,14 @@ export const TextBubbleMenu = () => {
               </div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
+            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:cursor-not-allowed"
+            title="Clear Formatting"
+          >
+            <Eraser className="size-3.5" />
+          </button>
         </div>
       </div>
     </BubbleMenu>

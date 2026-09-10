@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@heroui/styles";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -567,5 +568,42 @@ body {
     background-color: #ffffff !important;
     padding: 0 !important;
     display: block !important;
+  }
+}
+
+.color-picker__popover,
+.color-area {
+  @apply rounded-lg;
+}
+
+.color-picker__popover {
+
+  &.position-left {
+    @apply rounded-md border border-gray-200;
+    left: 575px !important;
+    top: 420px !important;
+
+    .color-area,
+    .cancel-btn,
+    .select-btn {
+      @apply rounded-md;
+    }
+
+    .cancel-btn,
+    .select-btn {
+      @apply rounded;
+    }
+  }
+
+  &.font-position-left {
+    @apply rounded-md border border-gray-200;
+    left: 605px !important;
+    top: 420px !important;
+
+    .color-area,
+    .cancel-btn,
+    .select-btn {
+      @apply rounded-md;
+    }
   }
 }

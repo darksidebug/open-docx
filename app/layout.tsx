@@ -34,7 +34,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 const googleSans = Google_Sans({
-  variable: "--font-geist-sans",
+  variable: "--font-google-sans",
   subsets: ["latin"],
 });
 

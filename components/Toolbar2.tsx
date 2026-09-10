@@ -110,7 +110,8 @@ const Toolbar2 = () => {
     colorSet,
     enableToolbar,
     fontSizes,
-    typographies
+    typographies,
+    clearCurrentBlockText
   } = useEditorStore();
 
   const handleSetFontSize = useDebounce((size: string) => {
@@ -646,7 +647,7 @@ const Toolbar2 = () => {
             </button>
 
             <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" />
-            
+
             <button
               type="button"
               onClick={() => editor?.commands.setPageBreak()}
@@ -696,14 +697,15 @@ const Toolbar2 = () => {
             >
               <Columns2 className="size-4" />
             </button> */}
-            <div className='relative flex items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800'>
+            <div className='relative flex items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 font-medium'>
               <button
                 onClick={() => {
-                  editor.chain().focus().insertColumnAfter().run()
+                  editor.chain().focus().insertColumns().run()
                 }}
+                disabled={editor.isActive('columnBlock')}
                 type="button"
-                className="p-1.25 flex items-center gap-1 cursor-pointer"
-                title='Add Column After'
+                className="p-1.25 flex items-center gap-1 cursor-pointer disabled:cursor-default"
+                {...(!editor.isActive('columnBlock') ? { title : 'Column Layout' } : {})}
               >
                 <Columns2 className="size-4" />
               </button>
@@ -712,7 +714,7 @@ const Toolbar2 = () => {
                   className='flex items-center py-1 px-px pr-0.75'
                   title='Column Options'
                 >
-                  <ChevronRight className='relative size-3 rotate-90' />
+                  <ChevronRight className='relative size-3.5 rotate-90' />
                 </button>
                 <div className="absolute -left-6 top-5 min-w-45 p-0.5 text-[12px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20">
                   <button
@@ -720,7 +722,7 @@ const Toolbar2 = () => {
                     onClick={() => {
                       editor.chain().focus().insertColumnBefore().run()
                     }}
-                    className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700 rounded-tl-md rounded-tr-md"
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
                   >
                     Insert Column Before
                   </button>
@@ -733,17 +735,44 @@ const Toolbar2 = () => {
                   >
                     Insert Column After
                   </button>
+                  <div className="w-full h-px border-t border-zinc-200 dark:bg-zinc-800 my-px" />
+                  <button
+                    type="button"
+                    onClick={clearCurrentBlockText}
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
+                  >
+                    Remove Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().deleteGridColumn().run()
+                    }}
+                    className="px-3 py-1.25 text-left hover:bg-zinc-100 cursor-pointer rounded dark:hover:bg-zinc-700"
+                  >
+                    Remove Column
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().deleteColumnBlock().run()
+                    }}
+                    className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-500 cursor-pointer rounded dark:hover:bg-zinc-700"
+                  >
+                    Delete Columns
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* <div className="w-px h-5 relative mx-2 border-l border-[#c4c7c5] dark:bg-zinc-700" /> */}
 
-            <div className='relative flex items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800'>
+            <div className='relative flex items-center rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 font-medium'>
               <button
                 type="button"
+                disabled={editor.isActive('table')}
                 onClick={() => editor?.chain()?.focus()?.insertTable({ rows: 3, cols: 3, withHeaderRow: true })?.run()}
-                className="px-1.5 py-1 flex items-center gap-1 text-xs cursor-pointer"
+                className="px-1.5 py-1 flex items-center gap-1 text-xs cursor-pointer disabled:cursor-default"
                 title="Insert Table (3x3)"
               >
                 <TableIcon className="size-4" />
