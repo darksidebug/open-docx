@@ -30,9 +30,13 @@ services:
       - NODE_ENV=development
     volumes:
       - .:/app
-      # Anonymous volume: keeps the container's own node_modules (matching
-      # its OS/arch) instead of letting the bind-mount above shadow it with
-      # the host's.
+      # Anonymous volumes: keep the container's own node_modules (matching
+      # its OS/arch) and .next build cache instead of letting the bind-mount
+      # above shadow them with the host's — especially important for .next,
+      # since a stale one built via `next build` (a different structure than
+      # `next dev` maintains) can make the dev server behave oddly or seem to
+      # ignore changes.
       - /app/node_modules
+      - /app/.next
     extra_hosts:
       - "host.docker.internal:host-gateway"

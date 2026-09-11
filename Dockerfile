@@ -19,7 +19,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 EXPOSE 3000 1234
-CMD ["npm", "run", "dev:all"]
+# Runs Next.js with --webpack (not the default Turbopack) specifically here:
+# Turbopack's own Rust-based file watcher doesn't read CHOKIDAR_USEPOLLING /
+# WATCHPACK_POLLING (those are webpack/chokidar-specific) and has no
+# documented polling equivalent, so it can silently miss changes made on the
+# host through a Docker bind mount. Webpack's watcher does respect those
+# vars (set in docker-compose.dev.yml). Outside Docker, `npm run dev` still
+# uses Turbopack as normal — this only affects the containerized dev path.
+CMD ["npm", "run", "dev:docker"]
 
 # ---- builder: compile the Next.js app ----
 FROM node:22-alpine AS builder

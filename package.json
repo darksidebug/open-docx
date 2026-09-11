@@ -10,6 +10,7 @@
     "collab-server": "tsx server/collab-server.ts",
     "collab-server:dev": "tsx watch server/collab-server.ts",
     "dev:all": "concurrently -n next,collab \"npm:dev\" \"npm:collab-server:dev\"",
+    "dev:docker": "concurrently -n next,collab \"next dev --webpack\" \"npm:collab-server:dev\"",
     "dummy-user": "node scripts/create-dummy-user.mjs"
   },
   "dependencies": {
