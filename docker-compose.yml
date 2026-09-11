@@ -1,7 +1,17 @@
+# Pulls the Laravel backend's own compose file into this project so both
+# stacks run as one Compose project, sharing one default network — no manual
+# `docker network create` or `external: true` needed. Services become
+# addressable by their service name (e.g. http://web:80 for Laravel's nginx),
+# same as if they'd always been defined in one file.
+#
+# Update the path below to wherever the Laravel project's docker-compose.yml
+# actually lives relative to this file (or use an absolute path).
+include:
+  - path: ../your-laravel-project/docker-compose.yml
+
 services:
-  # Named "open-docx" (not "app") to avoid colliding with a Laravel backend's
-  # own "app" (php-fpm) service if both stacks are ever joined onto one
-  # shared Docker network (see the "laravel" network below).
+  # Named "open-docx" (not "app") to avoid colliding with the Laravel
+  # backend's own "app" (php-fpm) service now that both are one project.
   open-docx:
     build: .
     ports:
@@ -12,19 +22,6 @@ services:
     restart: unless-stopped
     volumes:
       - collab-data:/app/.data # persists the collab server's local document snapshots
-    networks:
-      - default
-      - laravel
 
 volumes:
   collab-data:
-
-networks:
-  # Lets this container reach the Laravel API by service name (e.g.
-  # http://web:80) instead of 127.0.0.1/localhost, which inside a container
-  # only ever means "this container itself." Create it once with:
-  #   docker network create laravel
-  # and add the same `networks: [laravel]` entry (with this same name) to
-  # the Laravel/nginx compose file's "web" service.
-  laravel:
-    external: true

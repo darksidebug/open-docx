@@ -151,31 +151,19 @@ Runs the Next.js app and the collaboration server in one container (see
 **If your Laravel API is also dockerized on the same machine** (a separate
 `docker-compose.yml`), don't point `LARAVEL_API_URL` at `127.0.0.1`/`localhost`
 — inside a container that always means "this container itself," never the
-host or a sibling container. Put both stacks on one shared external Docker
-network instead:
+host or a sibling container.
 
-```bash
-docker network create laravel
-```
+This project's `docker-compose.yml` pulls in the Laravel project's own compose
+file via `include:`, so both stacks run as one Compose project sharing one
+network — no manual `docker network create` or `external: true` needed.
+Update the placeholder path in `docker-compose.yml`'s `include:` block to
+wherever the Laravel project's `docker-compose.yml` actually lives, then set
+`LARAVEL_API_URL` to its nginx service's name and *internal* container port
+(not the host-mapped one) — e.g. `http://web:80`, not `http://web:8000` if
+`8000` is only how it's published to the host.
 
-Add the same network to Laravel's nginx service (e.g. `web`) in *its* compose
-file:
-
-```yaml
-services:
-  web:
-    networks:
-      - laravel
-networks:
-  laravel:
-    external: true
-```
-
-This project's `open-docx` service already joins that `laravel` network (see
-`docker-compose.yml`). Then set `LARAVEL_API_URL` to nginx's service name and
-its *internal* container port (not the host-mapped one) — e.g.
-`http://web:80`, not `http://web:8000` if `8000` is only how it's published to
-the host.
+`docker compose up --build` from this project then brings up both stacks
+together as one project.
 
 ## Learn More
 
