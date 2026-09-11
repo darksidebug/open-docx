@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000" # Next.js app
+      - "1234:1234" # real-time collaboration server
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - collab-data:/app/.data # persists the collab server's local document snapshots
+
+volumes:
+  collab-data:

@@ -46,6 +46,7 @@ import FontSize from '../ui/toolbars/FontSize';
 import FontFamily from '../ui/toolbars/FontFamily';
 import { cn } from '@/lib/utils';
 import Dropdown from '../ui/customs/Dropdown';
+import ColorUiPicker from '../ui/ColorUiPicker';
 
 export const TableBubbleMenu = () => {
   const {
@@ -61,6 +62,9 @@ export const TableBubbleMenu = () => {
     clearCurrentBlockText
   } = useEditorStore();
   const [isScrolling, setIsScrolling] = useState(false);
+  const [isOpened, setIsOpened] = useState(false);
+  const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
+  const [isPaintSwatchOpened, setIsPaintSwatchOpened] = useState(false);
 
   const handleSetFontSize = useDebounce((size: string) => {
     editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
@@ -734,7 +738,12 @@ export const TableBubbleMenu = () => {
           <button className="p-1 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer" title="Cell Background">
             <PaintBucket className='size-3.5' />
           </button>
-          <div className='hidden group-hover:block absolute top-5.5 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
+          <div
+            className={cn(
+              'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+              isPaintSwatchOpened ? 'block' : ''
+            )}
+          >
             <div className='flex flex-col gap-y-0.75 p-1'>
               {colorSet.map((colors, index) => (
                 <div
@@ -755,16 +764,27 @@ export const TableBubbleMenu = () => {
               ))}
             </div>
             <div className='relative mt-3 pt-1 border-t border-gray-200'>
-              <label
-                className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+              <button
+                className={cn(
+                  'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                  isFontSwatchOpened ? 'bg-gray-100' : ''
+                )}
+                onClick={() => setIsPaintSwatchOpened(state => !state)}
               >
                 Custom Color
-                <input
-                  type="color"
-                  className="sr-only absolute -left-58.75 -top-4 shadow-lg"
-                  onChange={(e) => editor?.chain()?.focus()?.setCellAttribute('backgroundColor', e.target.value)?.run()}
-                />
-              </label>
+              </button>
+              {isFontSwatchOpened && (
+                <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                  <ColorUiPicker
+                    onClick={() => {
+                      setIsPaintSwatchOpened(state => !state)
+                    }}
+                    colorAreaClass='h-32'
+                    onSelect={(color) => editor?.chain()?.focus()?.setCellAttribute('backgroundColor', color)?.run()}
+                    className='bg-white'
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -775,7 +795,12 @@ export const TableBubbleMenu = () => {
           >
             <Highlighter className="size-3.5" />
           </button>
-          <div className='hidden group-hover:block absolute top-5.5 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
+          <div
+            className={cn(
+              'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+              isOpened ? 'block' : ''
+            )}
+          >
             <div className='flex flex-col gap-y-0.75 p-1'>
               {colorSet.map((colors, index) => (
                 <div
@@ -796,16 +821,27 @@ export const TableBubbleMenu = () => {
               ))}
             </div>
             <div className='relative mt-3 pt-1 border-t border-gray-200'>
-              <label
-                className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
+              <button
+                className={cn(
+                  'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                  isOpened ? 'bg-gray-100' : ''
+                )}
+                onClick={() => setIsOpened(state => !state)}
               >
                 Custom Color
-                <input
-                  type="color"
-                  className="sr-only absolute -left-58.75 -top-4 shadow-lg"
-                  onChange={(e) => editor?.chain()?.focus()?.toggleHighlight({ color: e.target.value })?.run()}
-                />
-              </label>
+              </button>
+              {isOpened && (
+                <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                  <ColorUiPicker
+                    onClick={() => {
+                      setIsOpened(state => !state)
+                    }}
+                    colorAreaClass='h-32'
+                    onSelect={(color) => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
+                    className='bg-white'
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -816,39 +852,55 @@ export const TableBubbleMenu = () => {
           >
             <Baseline className="size-3.5" />
           </button>
-          <div className='hidden group-hover:block absolute top-5.5 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2'>
-            <div className='flex flex-col gap-y-0.75 p-1'>
-              {colorSet.map((colors, index) => (
-                <div
-                  key={index}
-                  className='flex items-center gap-x-0.75'
+          <div
+              className={cn(
+                'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+                isFontSwatchOpened ? 'block' : ''
+              )}
+            >
+              <div className='flex flex-col gap-y-0.75 p-1'>
+                {colorSet.map((colors, index) => (
+                  <div
+                    key={index}
+                    className='flex items-center gap-x-0.75'
+                  >
+                    {colors.map(color => (
+                      <button
+                        key={color}
+                        className='size-5 rounded-full border border-gray-300 cursor-pointer'
+                        style={{
+                          backgroundColor: `${color}`
+                        }}
+                        onClick={() => editor?.chain()?.focus()?.setColor(color)?.run()}
+                      />
+                    )).reverse()}
+                  </div>
+                ))}
+              </div>
+              <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                <button
+                  className={cn(
+                    'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                    isFontSwatchOpened ? 'bg-gray-100' : ''
+                  )}
+                  onClick={() => setIsFontSwatchOpened(state => !state)}
                 >
-                  {colors.map(color => (
-                    <button
-                      key={color}
-                      className='size-5 rounded-full border border-gray-300 cursor-pointer'
-                      style={{
-                        backgroundColor: `${color}`
+                  Custom Color
+                </button>
+                {isFontSwatchOpened && (
+                  <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                    <ColorUiPicker
+                      onClick={() => {
+                        setIsFontSwatchOpened(state => !state)
                       }}
-                      onClick={() => editor?.chain()?.focus()?.setColor(color)?.run()}
+                      colorAreaClass='h-32'
+                      onSelect={(color) => editor?.chain()?.focus()?.setColor(color)?.run()}
+                      className='bg-white'
                     />
-                  )).reverse()}
-                </div>
-              ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className='relative mt-3 pt-1 border-t border-gray-200'>
-              <label
-                className="w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer"
-              >
-                Custom Color
-                <input
-                  type="color"
-                  className="sr-only absolute -left-58.75 -top-4 shadow-lg"
-                  onChange={(e) => editor?.chain()?.focus()?.setColor(e.target.value)?.run()}
-                />
-              </label>
-            </div>
-          </div>
         </div>
         <button
           type="button"

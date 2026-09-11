@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type Editor } from "@tiptap/react";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
 
 interface ActiveMarks {
   bold: boolean;
@@ -15,6 +16,8 @@ interface ActiveMarks {
 interface EditorState {
   editor: Editor | null;
   setEditor: (editor: Editor | null) => void;
+  collabProvider: HocuspocusProvider | null;
+  setCollabProvider: (provider: HocuspocusProvider | null) => void;
   formatBuffer: ActiveMarks | null;
   setFormatBuffer: (buffer: ActiveMarks | null) => void;
   handleCopyFormat: () => void;
@@ -43,6 +46,8 @@ interface EditorState {
 export const useEditorStore = create<EditorState>((set, get) => ({
   editor: null,
   setEditor: (editor) => set({ editor }),
+  collabProvider: null,
+  setCollabProvider: (collabProvider) => set({ collabProvider }),
   documentName: 'Untitled document',
   setDocumentName: (documentName: string) => set({ documentName }),
   formatBuffer: null,

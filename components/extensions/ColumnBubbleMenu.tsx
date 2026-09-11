@@ -51,8 +51,6 @@ export const ColumnBubbleMenu = () => {
     clearCurrentBlockText
   } = useEditorStore();
   const [isScrolling, setIsScrolling] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const fontContainerRef = useRef<HTMLDivElement | null>(null);
   const [isOpened, setIsOpened] = useState(false);
   const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
 
@@ -475,21 +473,28 @@ export const ColumnBubbleMenu = () => {
                   </div>
                 ))}
               </div>
-              <div ref={containerRef} className='relative mt-3 pt-1 border-t border-gray-200'>
-                <ColorUiPicker
-                  isOpen={isOpened}
-                  className='min-h-[250px] position-left'
-                  labelModifier={cn(
+              <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                <button
+                  className={cn(
                     'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
                     isOpened ? 'bg-gray-100' : ''
                   )}
-                  boundaryRef={containerRef as RefObject<HTMLDivElement>}
-                  colorAreaClass='h-31'
-                  onClick={() => {
-                    setIsOpened(state => !state)
-                  }}
-                  // onSelect={() => {}}
-                />
+                  onClick={() => setIsOpened(state => !state)}
+                >
+                  Custom Color
+                </button>
+                {isOpened && (
+                  <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                    <ColorUiPicker
+                      onClick={() => {
+                        setIsOpened(state => !state)
+                      }}
+                      colorAreaClass='h-32'
+                      onSelect={(color) => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
+                      className='bg-white'
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -525,21 +530,28 @@ export const ColumnBubbleMenu = () => {
                   </div>
                 ))}
               </div>
-              <div ref={fontContainerRef} className='relative mt-3 pt-1 border-t border-gray-200'>
-                <ColorUiPicker
-                  isOpen={isFontSwatchOpened}
-                  className='min-h-[250px] font-position-left'
-                  labelModifier={cn(
+              <div className='relative mt-3 pt-1 border-t border-gray-200'>
+                <button
+                  className={cn(
                     'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
                     isFontSwatchOpened ? 'bg-gray-100' : ''
                   )}
-                  boundaryRef={fontContainerRef as RefObject<HTMLDivElement>}
-                  colorAreaClass='h-31'
-                  onClick={() => {
-                    setIsFontSwatchOpened(state => !state)
-                  }}
-                  // onSelect={() => {}}
-                />
+                  onClick={() => setIsFontSwatchOpened(state => !state)}
+                >
+                  Custom Color
+                </button>
+                {isFontSwatchOpened && (
+                  <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                    <ColorUiPicker
+                      onClick={() => {
+                        setIsFontSwatchOpened(state => !state)
+                      }}
+                      colorAreaClass='h-32'
+                      onSelect={(color) => editor?.chain()?.focus()?.setColor(color)?.run()}
+                      className='bg-white'
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

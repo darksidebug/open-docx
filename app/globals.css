@@ -576,7 +576,7 @@ body {
   @apply rounded-lg;
 }
 
-.color-picker__popover {
+/* .color-picker__popover {
 
   &.position-left {
     @apply rounded-md border border-gray-200;
@@ -606,4 +606,4 @@ body {
       @apply rounded-md;
     }
   }
-}
+} */
