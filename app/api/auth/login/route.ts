@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { laravelLogin, LaravelApiError } from '@/lib/auth/laravel';
-import { createSessionCookie } from '@/lib/auth/session';
+import { createSession } from '@/lib/auth/session';
 
 export async function POST(request: Request) {
   const { email, password } = await request.json().catch(() => ({}));
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
   try {
     const { token, user } = await laravelLogin(email, password);
-    await createSessionCookie(token);
+    await createSession(token, user);
     return NextResponse.json({ user });
   } catch (error) {
     if (error instanceof LaravelApiError) {

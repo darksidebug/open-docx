@@ -1,9 +1,8 @@
 import 'server-only';
 
 const LARAVEL_API_URL = process.env.LARAVEL_API_URL || 'http://localhost:8000';
-const LOGIN_PATH = process.env.LARAVEL_LOGIN_PATH || '/api/login';
-const USER_PATH = process.env.LARAVEL_USER_PATH || '/api/user';
-const LOGOUT_PATH = process.env.LARAVEL_LOGOUT_PATH || '/api/logout';
+const LOGIN_PATH = process.env.LARAVEL_LOGIN_PATH || '/v1/auth/login';
+const LOGOUT_PATH = process.env.LARAVEL_LOGOUT_PATH || '/v1/auth/logout';
 
 export interface LaravelUser {
   id: number | string;
@@ -45,9 +44,12 @@ export async function laravelFetch(path: string, init: RequestInit = {}) {
 }
 
 /**
- * Expects Laravel to respond with `{ token, user }` from a Sanctum-style
- * personal access token login endpoint. Adjust LARAVEL_LOGIN_PATH / this
- * parsing if your app's response shape differs.
+ * Matches this API's actual login response shape (confirmed from the main
+ * app's own axios client, main-app.md):
+ *   { status: "success", user: {...}, authorization: { token: "..." }, ... }
+ * Some endpoints on this API return HTTP 200 even for a logical failure
+ * (`status` something other than "success"), so that's checked explicitly
+ * rather than relying on `response.ok` alone.
  */
 export async function laravelLogin(email: string, password: string) {
   const response = await laravelFetch(LOGIN_PATH, {
@@ -55,15 +57,16 @@ export async function laravelLogin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message = body?.message || 'Invalid email or password.';
-    throw new LaravelApiError(message, response.status);
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || (data?.status && data.status !== 'success')) {
+    const message = data?.message || data?.error || 'Invalid email or password.';
+    throw new LaravelApiError(message, response.ok ? 401 : response.status);
   }
 
-  const data = await response.json();
-  const token: string | undefined = data.token ?? data.access_token ?? data.data?.token;
-  const user: LaravelUser | undefined = data.user ?? data.data?.user;
+  const token: string | undefined =
+    data?.authorization?.token ?? data?.token ?? data?.access_token ?? data?.data?.token;
+  const user: LaravelUser | undefined = data?.user ?? data?.data?.user;
 
   if (!token || !user) {
     throw new LaravelApiError(
@@ -73,21 +76,6 @@ export async function laravelLogin(email: string, password: string) {
   }
 
   return { token, user };
-}
-
-export async function laravelGetUser(token: string): Promise<LaravelUser | null> {
-  const response = await laravelFetch(USER_PATH, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (response.status === 401) return null;
-
-  if (!response.ok) {
-    throw new LaravelApiError('Failed to load the current user from Laravel.', response.status);
-  }
-
-  const data = await response.json();
-  return data.user ?? data.data ?? data;
 }
 
 export async function laravelLogout(token: string) {

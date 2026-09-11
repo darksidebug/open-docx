@@ -1,17 +1,4 @@
-# Pulls the Laravel backend's own compose file into this project so both
-# stacks run as one Compose project, sharing one default network — no manual
-# `docker network create` or `external: true` needed. Services become
-# addressable by their service name (e.g. http://web:80 for Laravel's nginx),
-# same as if they'd always been defined in one file.
-#
-# Update the path below to wherever the Laravel project's docker-compose.yml
-# actually lives relative to this file (or use an absolute path).
-include:
-  - path: ../your-laravel-project/docker-compose.yml
-
 services:
-  # Named "open-docx" (not "app") to avoid colliding with the Laravel
-  # backend's own "app" (php-fpm) service now that both are one project.
   open-docx:
     build: .
     ports:
@@ -22,6 +9,12 @@ services:
     restart: unless-stopped
     volumes:
       - collab-data:/app/.data # persists the collab server's local document snapshots
+    extra_hosts:
+      # Makes the host.docker.internal DNS name available inside this
+      # container. Docker Desktop (Mac/Windows) already provides it for
+      # free; plain Docker Engine (Linux) needs this line. Harmless either
+      # way. See LARAVEL_API_URL in .env(.example) for how it's used.
+      - "host.docker.internal:host-gateway"
 
 volumes:
   collab-data:

@@ -29,9 +29,10 @@ auto-saves the result to a separate reporting table.
 
 Setup:
 
-1. Copy `.env.example` to `.env` (or `.env.local`) and point `LARAVEL_API_URL` at your
-   Laravel app. Adjust the `LARAVEL_*_PATH` vars if your routes differ from the
-   defaults documented in that file.
+1. Copy `.env.example` to `.env` (or `.env.local`), set `SESSION_SECRET` (generate one
+   with `openssl rand -base64 32` — the app won't start without it), and point
+   `LARAVEL_API_URL` at your Laravel app. Adjust the `LARAVEL_*_PATH` vars if your
+   routes differ from the defaults documented in that file.
 2. Create a test account: `npm run dummy-user` (registers the account defined by the
    `DUMMY_USER_*` env vars against your Laravel API's register endpoint; if that route
    doesn't exist, it prints a `php artisan tinker` snippet to create the row directly).
@@ -46,8 +47,15 @@ Setup:
 
 How it fits together:
 
-- `app/api/auth/login` and `app/api/auth/logout` forward credentials to Laravel and
-  store the returned token in a secure, httpOnly cookie — the browser never sees it.
+- `app/api/auth/login` forwards credentials to Laravel, then stores `{ token, user }`
+  from its response together in one signed (`SESSION_SECRET`), httpOnly session
+  cookie — the browser never sees the raw token, and it can't tamper with the user
+  data since the cookie is signed. `getCurrentUser()` decodes this cookie directly on
+  each request with no further network call, since this API has no confirmed "get
+  current user by token" endpoint to call instead (its login response already
+  includes the full user). `getSessionToken()` pulls the raw Laravel token back out
+  of that same cookie for calls that do need it (documents, templates, reports).
+  `app/api/auth/logout` clears it and best-effort notifies Laravel.
 - `proxy.ts` redirects unauthenticated visitors away from `/docs/*`.
 - `app/docs/[id]/page.tsx` fetches the current user, then calls Laravel
   (`LARAVEL_DOCUMENT_PATH`) to check they're assigned to that document's ordered
@@ -148,22 +156,20 @@ docker compose up --build
 Runs the Next.js app and the collaboration server in one container (see
 `ecosystem.config.js`), on ports 3000 and 1234.
 
-**If your Laravel API is also dockerized on the same machine** (a separate
-`docker-compose.yml`), don't point `LARAVEL_API_URL` at `127.0.0.1`/`localhost`
-— inside a container that always means "this container itself," never the
-host or a sibling container.
+**If your Laravel API is also dockerized on the same machine** (a separate,
+independent `docker-compose.yml` you don't want this project entangled with),
+don't point `LARAVEL_API_URL` at `127.0.0.1`/`localhost` — inside a container
+that always means "this container itself," never the host or a sibling
+container. Use `http://host.docker.internal:<port>` instead, where `<port>`
+is whatever port Laravel's nginx is published to the *host* as (the same port
+you'd use from a browser on that machine, e.g. `8000`) — `docker-compose.yml`
+already has the one line (`extra_hosts`) plain Docker Engine on Linux needs to
+make that DNS name resolve (Docker Desktop provides it for free).
 
-This project's `docker-compose.yml` pulls in the Laravel project's own compose
-file via `include:`, so both stacks run as one Compose project sharing one
-network — no manual `docker network create` or `external: true` needed.
-Update the placeholder path in `docker-compose.yml`'s `include:` block to
-wherever the Laravel project's `docker-compose.yml` actually lives, then set
-`LARAVEL_API_URL` to its nginx service's name and *internal* container port
-(not the host-mapped one) — e.g. `http://web:80`, not `http://web:8000` if
-`8000` is only how it's published to the host.
-
-`docker compose up --build` from this project then brings up both stacks
-together as one project.
+This treats the Laravel API as an independent, already-running service reached
+over the network — the same relationship it'll have in production once this
+app and Laravel are deployed to separate hosts — rather than merging the two
+projects' Compose files together.
 
 ## Learn More
 
