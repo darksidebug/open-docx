@@ -1,5 +1,8 @@
 services:
-  app:
+  # Named "open-docx" (not "app") to avoid colliding with a Laravel backend's
+  # own "app" (php-fpm) service if both stacks are ever joined onto one
+  # shared Docker network (see the "laravel" network below).
+  open-docx:
     build: .
     ports:
       - "3000:3000" # Next.js app
@@ -9,6 +12,19 @@ services:
     restart: unless-stopped
     volumes:
       - collab-data:/app/.data # persists the collab server's local document snapshots
+    networks:
+      - default
+      - laravel
 
 volumes:
   collab-data:
+
+networks:
+  # Lets this container reach the Laravel API by service name (e.g.
+  # http://web:80) instead of 127.0.0.1/localhost, which inside a container
+  # only ever means "this container itself." Create it once with:
+  #   docker network create laravel
+  # and add the same `networks: [laravel]` entry (with this same name) to
+  # the Laravel/nginx compose file's "web" service.
+  laravel:
+    external: true

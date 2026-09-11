@@ -138,6 +138,45 @@ Thumbnails fall back to a plain icon (documents) or a colored initial (templates
 when Laravel doesn't provide a `thumbnail_url` — real thumbnail *generation*
 (rendering a preview image of a document) isn't implemented.
 
+## Docker
+
+```bash
+cp .env.example .env   # fill in your LARAVEL_API_URL etc.
+docker compose up --build
+```
+
+Runs the Next.js app and the collaboration server in one container (see
+`ecosystem.config.js`), on ports 3000 and 1234.
+
+**If your Laravel API is also dockerized on the same machine** (a separate
+`docker-compose.yml`), don't point `LARAVEL_API_URL` at `127.0.0.1`/`localhost`
+— inside a container that always means "this container itself," never the
+host or a sibling container. Put both stacks on one shared external Docker
+network instead:
+
+```bash
+docker network create laravel
+```
+
+Add the same network to Laravel's nginx service (e.g. `web`) in *its* compose
+file:
+
+```yaml
+services:
+  web:
+    networks:
+      - laravel
+networks:
+  laravel:
+    external: true
+```
+
+This project's `open-docx` service already joins that `laravel` network (see
+`docker-compose.yml`). Then set `LARAVEL_API_URL` to nginx's service name and
+its *internal* container port (not the host-mapped one) — e.g.
+`http://web:80`, not `http://web:8000` if `8000` is only how it's published to
+the host.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
