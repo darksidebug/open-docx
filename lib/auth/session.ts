@@ -7,13 +7,22 @@ import type { LaravelUser } from './laravel';
 
 export const SESSION_COOKIE = 'ldx_token';
 
-const secretKey = process.env.SESSION_SECRET;
-if (!secretKey) {
-  throw new Error(
-    'SESSION_SECRET is not set. Generate one with `openssl rand -base64 32` and add it to your .env.',
-  );
+// Deliberately lazy: reading process.env.SESSION_SECRET and throwing here at
+// module scope would fire the instant this file is imported — including
+// during `next build`'s page-data collection, which imports every route
+// module (this one included) without any real runtime env available (.env
+// is intentionally excluded from the Docker build context so secrets never
+// end up baked into image layers). Evaluated only when a session is actually
+// created/read, i.e. at real runtime, when it should genuinely be set.
+function getEncodedKey() {
+  const secretKey = process.env.SESSION_SECRET;
+  if (!secretKey) {
+    throw new Error(
+      'SESSION_SECRET is not set. Generate one with `openssl rand -base64 32` and add it to your .env.',
+    );
+  }
+  return new TextEncoder().encode(secretKey);
 }
-const encodedKey = new TextEncoder().encode(secretKey);
 
 interface SessionPayload {
   token: string; // the raw Laravel bearer token, for calling other Laravel endpoints
@@ -35,7 +44,7 @@ export async function createSession(token: string, user: LaravelUser) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(encodedKey);
+    .sign(getEncodedKey());
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, session, {
@@ -58,7 +67,7 @@ const getSession = cache(async (): Promise<SessionPayload | null> => {
   if (!cookie) return null;
 
   try {
-    const { payload } = await jwtVerify<SessionPayload>(cookie, encodedKey, { algorithms: ['HS256'] });
+    const { payload } = await jwtVerify<SessionPayload>(cookie, getEncodedKey(), { algorithms: ['HS256'] });
     return { token: payload.token, user: payload.user };
   } catch (error) {
     console.error('[getSession] Invalid or expired session cookie:', error);
