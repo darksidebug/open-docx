@@ -148,13 +148,24 @@ when Laravel doesn't provide a `thumbnail_url` — real thumbnail *generation*
 
 ## Docker
 
+**Production** (`docker-compose.yml`) — a full image rebuild per change, runs the
+compiled build via pm2:
 ```bash
 cp .env.example .env   # fill in your LARAVEL_API_URL etc.
 docker compose up --build
 ```
-
 Runs the Next.js app and the collaboration server in one container (see
 `ecosystem.config.js`), on ports 3000 and 1234.
+
+**Local development** (`docker-compose.dev.yml`) — hot reload, no rebuild needed
+per code change:
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+Bind-mounts your local source into the container and runs `next dev` +
+`tsx watch` for the collab server (`npm run dev:all`), so editing files on the
+host takes effect immediately. Only rebuild (`--build`) again if you change
+`package.json` or the `Dockerfile` itself.
 
 **If your Laravel API is also dockerized on the same machine** (a separate,
 independent `docker-compose.yml` you don't want this project entangled with),

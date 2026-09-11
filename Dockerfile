@@ -9,6 +9,18 @@ COPY package.json package-lock.json ./
 # some Tiptap sub-packages pin exact peer versions that otherwise conflict.
 RUN npm ci --legacy-peer-deps
 
+# ---- dev: local development, hot reload ----
+# Meant to run with your local source bind-mounted over /app (see
+# docker-compose.dev.yml) — COPY . . here is just a fallback so `docker build
+# --target dev` alone still produces something runnable.
+FROM node:22-alpine AS dev
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+EXPOSE 3000 1234
+CMD ["npm", "run", "dev:all"]
+
 # ---- builder: compile the Next.js app ----
 FROM node:22-alpine AS builder
 WORKDIR /app

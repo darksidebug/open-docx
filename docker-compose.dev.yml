@@ -1,0 +1,38 @@
+# Local development: hot reload for both the Next.js app (Next's own dev
+# server) and the collaboration server (tsx --watch). Your local source is
+# bind-mounted into the container, so editing files on the host takes effect
+# immediately — no image rebuild needed for code changes.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# (docker-compose.yml, without ".dev", is the production image — a full
+# rebuild per change, no bind mounts, runs the compiled build via pm2. Use
+# that one to test the actual production build/deployment path instead.)
+services:
+  open-docx:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000" # Next.js app
+      - "1234:1234" # real-time collaboration server
+    env_file:
+      - .env
+    environment:
+      # Reliable file-watching across Docker's bind-mount boundary — matters
+      # most on Docker Desktop (Mac/Windows), where native filesystem events
+      # don't always propagate into the container.
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - NEXT_WEBPACK_USEPOLLING=1
+      - CHOKIDAR_INTERVAL=200
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      # Anonymous volume: keeps the container's own node_modules (matching
+      # its OS/arch) instead of letting the bind-mount above shadow it with
+      # the host's.
+      - /app/node_modules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
