@@ -7,6 +7,7 @@ import {
   Clipboard,
   Copy,
   Download,
+  Eye,
   File,
   Folder,
   Highlighter,
@@ -57,6 +58,7 @@ import {
   Paperclip
 } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useContext, useState } from 'react'
 import { ActiveMarks } from './Toolbar2'
 import { cn } from '@/lib/utils'
@@ -65,7 +67,7 @@ import { tiptapToDocx, downloadDocx } from "@/lib/export-to-docx";
 import { tiptapToPdf, downloadPdf } from "@/lib/export-to-pdf";
 import { downloadHtml } from "@/lib/export-to-html";
 import { importDocxFile } from "@/lib/import-docx";
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import CollabPresence from './CollabPresence';
 
 const ToolbarMenu = () => {
@@ -92,6 +94,8 @@ const ToolbarMenu = () => {
   } = useEditorStore();
   const [isEditingDocName, setIsEditingDocName] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+  const documentId = pathname?.match(/^\/docs\/([^/]+)/)?.[1];
 
   if (!editor) return null;
 
@@ -209,7 +213,6 @@ const ToolbarMenu = () => {
               <div className='hidden group-hover:flex absolute -left-2 top-full flex-col gap-y-0.5 z-20 min-w-60 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
                 <div className='relative group/sub'>
                   <button
-                    onClick={() => window.print()}
                     className='relative w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 group-hover/sub:bg-gray-100 cursor-pointer'
                   >
                     <File className='size-3.75' />
@@ -217,29 +220,27 @@ const ToolbarMenu = () => {
                     <ChevronRight className='absolute right-2 size-3.75' />
                   </button>
                   <div className='hidden group-hover/sub:flex absolute left-full top-0 flex-col gap-y-0.5 z-20 min-w-50 p-0.5 bg-white shadow-2xl border border-gray-300 rounded-lg'>
-                    <button
-                      // onClick={selectCurrentText}
-                      // disabled={isBlockEmpty()}
+                    <Link
+                      href='/docs'
                       className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-tl-md rounded-tr-md hover:bg-gray-100 cursor-pointer'
                     >
                       Blank Template
-                    </button>
-                    <button
-                      // onClick={selectCurrentText}
-                      // disabled={isBlockEmpty()}
+                    </Link>
+                    <Link
+                      href='/docs'
                       className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
                     >
                       From Services Template
-                    </button>
+                    </Link>
                   </div>
                 </div>
-                <button
-                  onClick={() => window.print()}
+                <Link
+                  href='/docs'
                   className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                 >
                   <Folder className='size-3.75' />
                   Open
-                </button>
+                </Link>
                 <label className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'>
                   <Upload className='size-3.75' />
                   Upload docx
@@ -307,6 +308,15 @@ const ToolbarMenu = () => {
                   <Printer className='size-3.75' />
                   Print
                 </button>
+                {documentId && (
+                  <Link
+                    href={`/docs/${documentId}/view`}
+                    className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  >
+                    <Eye className='size-3.75' />
+                    Open view-only
+                  </Link>
+                )}
                 <div className="h-px border-b border-gray-200 w-full" />
                 <button
                   onClick={() => window.print()}
@@ -645,7 +655,7 @@ const ToolbarMenu = () => {
                 </button>
                 <div className="h-px border-b border-gray-200 w-full" />
                 <button
-                  onClick={() => editor?.chain()?.focus()?.toggleCodeBlock()?.run()}
+                  onClick={() => editor?.chain()?.focus()?.setESignature()?.run()}
                   className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                 >
                   <Signature className='size-3.75' />

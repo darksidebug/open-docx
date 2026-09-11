@@ -7,7 +7,9 @@
  * Supported nodes:
  *   doc, paragraph, text, heading, bulletList, orderedList, listItem,
  *   taskList, taskItem, blockquote, codeBlock, horizontalRule, hardBreak,
- *   image, table, tableRow, tableCell, tableHeader
+ *   image, table, tableRow, tableCell, tableHeader, eSignature (signed only —
+ *   exports as a floating image at its page-relative x/y; unsigned fields
+ *   are omitted)
  *
  * Supported marks:
  *   bold, italic, underline, strike, code, link, highlight, textStyle
@@ -26,6 +28,7 @@ import {
   Document,
   ExternalHyperlink,
   HeadingLevel,
+  HorizontalPositionRelativeFrom,
   ImageRun,
   LevelFormat,
   LineRuleType,
@@ -38,15 +41,20 @@ import {
   TableCell,
   TableRow,
   TextRun,
+  TextWrappingType,
   UnderlineType,
   VerticalAlignTable,
   VerticalMergeType,
+  VerticalPositionRelativeFrom,
   WidthType,
   convertInchesToTwip,
   type IRunOptions,
   type ILevelsOptions,
   type ParagraphChild,
 } from "docx";
+
+// 1px at the standard 96dpi the editor renders at == 9525 EMU (914400 EMU/inch / 96).
+const EMU_PER_PX = 9525;
 
 // ---------------------------------------------------------------------------
 // Tiptap / ProseMirror JSON types
@@ -851,6 +859,45 @@ async function imageNodeToRun(node: TiptapNode, state: ConvertState): Promise<Im
   });
 }
 
+/**
+ * A signed eSignature field -> a floating (freely positioned) image, placed
+ * at the same page-relative pixel coordinates the editor's drag-and-drop
+ * positioning uses (see lib/extensions/esignature.ts), converted straight to
+ * EMUs at 96dpi. This is a best-effort visual match, not pixel-perfect —
+ * Word's own page margins/rendering can shift things slightly from the
+ * browser preview.
+ */
+async function eSignatureNodeToRun(node: TiptapNode, state: ConvertState): Promise<ImageRun | null> {
+  const src = extractImageSrc(node);
+  if (!src) return null;
+
+  const resolver = state.options.resolveImage ?? defaultResolveImage;
+  let resolved: ResolvedImage;
+  try {
+    resolved = await resolver(src);
+  } catch (err) {
+    reportImageIssue(state, src, err as Error);
+    return null;
+  }
+
+  const width = Math.round(node.attrs?.width) || resolved.width;
+  const height = Math.round(node.attrs?.height) || resolved.height;
+  const x = Math.round(node.attrs?.x) || 0;
+  const y = Math.round(node.attrs?.y) || 0;
+
+  return new ImageRun({
+    type: resolved.type,
+    data: resolved.data,
+    transformation: { width, height },
+    floating: {
+      horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: x * EMU_PER_PX },
+      verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: y * EMU_PER_PX },
+      wrap: { type: TextWrappingType.NONE },
+      allowOverlap: true,
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Block content -> (Paragraph | Table)[]
 // ---------------------------------------------------------------------------
@@ -1063,6 +1110,14 @@ async function convertBlockNode(
     case "image": {
       const run = await imageNodeToRun(node, state);
       return [new Paragraph({ children: run ? [run] : [], alignment: imageAlignmentFromAttrs(node.attrs) })];
+    }
+
+    case "eSignature": {
+      // Unsigned fields (no drawn signature yet) export as nothing, same as
+      // an image node with no src — there's nothing to place on the page.
+      if (!node.attrs?.src) return [];
+      const run = await eSignatureNodeToRun(node, state);
+      return run ? [new Paragraph({ children: [run] })] : [];
     }
 
     case "verticalAlign": {

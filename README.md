@@ -78,6 +78,66 @@ that extension is made headless-safe. Every other custom extension (tables with
 custom cell colors, columns, resizable images, etc.) has been verified to round-trip
 correctly through this pipeline.
 
+### Read-only view, download, print
+
+`/docs/[id]/view` renders the same document in a non-editable Tiptap instance
+(`editable: false`), sourced from the last auto-saved report (`getDocumentReport`) —
+it doesn't open a live collaboration/WebSocket connection at all. Same access check
+as the editor (must be logged in and assigned to the document's ordered service).
+
+Its action bar (hidden on print via `print:hidden`) has:
+- **Print** — `window.print()`, reusing the app's existing print stylesheet.
+- **Word** / **PDF** — reuse the same `downloadDocx`/`downloadPdf` converters the
+  live editor's own File > Download menu uses, fed from the read-only editor's
+  `getJSON()`.
+- **Back to editor** — link to `/docs/[id]`.
+
+The live editor's File menu also links to `/docs/[id]/view` ("Open view-only").
+
+Both the live editor and the viewer share one extension list
+(`lib/editor/base-extensions.ts`) so they always render content identically —
+the editor adds `Collaboration`/`CollaborationCaret` on top of it.
+
+### eSignature (Insert > eSignature)
+
+`lib/extensions/esignature.ts` is a Tiptap node that floats freely over the
+page instead of sitting in the text flow — drag it anywhere by its box, resize
+it from the corner handle, then either draw a signature into a small canvas
+pad (`components/extensions/SignaturePad.tsx`, works with mouse, trackpad, or
+touch via the Pointer Events API) or upload an existing signature image.
+Position/size (`x`, `y`, `width`, `height`) are plain pixels from the page's
+top-left corner, the same coordinate space the editor already renders at
+(816×1054px, 96dpi).
+
+Included in both exports as a floating/absolutely-positioned image at that
+same page position (converted to EMUs for docx, to pt for PDF) — an unsigned
+field (no drawn signature yet) exports as nothing, same as an empty image.
+Also included in the auto-saved report pipeline
+(`lib/collab/report-extensions.ts`), verified round-trip end to end.
+
+### Docs dashboard (`/docs`)
+
+A Google-Docs-style home page: a "Start a new document" gallery (a blank-document
+tile plus one tile per service template) and a "Recent documents" grid/list of the
+documents this user is assigned to, sortable and switchable between views.
+
+New Laravel routes this needs, alongside the ones documented above:
+- `GET  {LARAVEL_DOCUMENTS_LIST_PATH}` (default `/api/documents`) → `{ documents: [...] }`,
+  each `{ id, title, updated_at, opened_at?, thumbnail_url? }` — documents this
+  user is assigned to.
+- `GET  {LARAVEL_TEMPLATES_LIST_PATH}` (default `/api/service-templates`) →
+  `{ templates: [...] }`, each `{ id, name, category?, thumbnail_url? }` — the
+  service templates that populate the gallery.
+- `POST {LARAVEL_DOCUMENTS_LIST_PATH}` body `{ template_id, title }` (both
+  nullable — omitted `template_id` means blank) → `{ document: { id, ... } }`.
+  Laravel owns whatever business rules decide how a newly created document
+  relates to an order/service; this app just asks for one and navigates to
+  `/docs/{id}` with the id it gets back.
+
+Thumbnails fall back to a plain icon (documents) or a colored initial (templates)
+when Laravel doesn't provide a `thumbnail_url` — real thumbnail *generation*
+(rendering a preview image of a document) isn't implemented.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

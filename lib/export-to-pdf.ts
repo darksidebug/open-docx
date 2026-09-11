@@ -1426,6 +1426,51 @@ async function imageNodeToContent(
   };
 }
 
+/**
+ * A signed eSignature field -> an image placed at an absolute page position
+ * (pdfmake's `absolutePosition`, in pt), converted from the same page-relative
+ * pixel coordinates the editor's drag-and-drop positioning uses (see
+ * lib/extensions/esignature.ts) at the standard 96dpi -> pt factor (0.75)
+ * already used for every other measurement in this file. Best-effort visual
+ * match, not pixel-perfect.
+ */
+async function eSignatureNodeToContent(
+  node: TiptapNode,
+  state: ConvertState
+): Promise<ContentImage | null> {
+  const src = extractImageSrc(node);
+  if (!src) return null;
+
+  const resolver =
+    state.options.resolveImage ??
+    defaultResolveImage;
+
+  let resolved: ResolvedImage;
+  try {
+    resolved = await resolver(src);
+  } catch (err) {
+    reportImageIssue(state, src, err as Error);
+    return null;
+  }
+
+  const width = Math.round(node.attrs?.width) || resolved.width;
+  const height = Math.round(node.attrs?.height) || resolved.height;
+  const x = Math.round(node.attrs?.x) || 0;
+  const y = Math.round(node.attrs?.y) || 0;
+
+  const base64 =
+    typeof resolved.data === "string"
+      ? resolved.data
+      : uint8ArrayToBase64(resolved.data);
+
+  return {
+    image: `data:image/${resolved.type};base64,${base64}`,
+    width: Math.round(width * 0.75),
+    height: Math.round(height * 0.75),
+    absolutePosition: { x: Math.round(x * 0.75), y: Math.round(y * 0.75) },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Inline conversion
 // ---------------------------------------------------------------------------
@@ -2152,6 +2197,17 @@ async function convertBlockNode(
       return img
         ? [img]
         : [];
+    }
+
+    // -----------------------------------------------------------------------
+    // eSignature
+    // -----------------------------------------------------------------------
+
+    case "eSignature": {
+      // Unsigned fields (no drawn signature yet) export as nothing.
+      if (!node.attrs?.src) return [];
+      const signature = await eSignatureNodeToContent(node, state);
+      return signature ? [signature] : [];
     }
 
     // -----------------------------------------------------------------------

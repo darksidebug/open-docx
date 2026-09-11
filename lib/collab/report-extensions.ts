@@ -14,6 +14,7 @@ import { PasteDefaultFont } from '@/lib/extensions/paste-default-font';
 import { LineHeightExtension } from '@/lib/extensions/line-height';
 import { PageBreak } from '@/lib/extensions/page-break';
 import { VerticalAlign } from '@/lib/extensions/vertical-align';
+import { ESignature } from '@/lib/extensions/esignature';
 
 /**
  * Extensions used to turn the live Yjs document into Tiptap JSON/HTML for the
@@ -67,4 +68,5 @@ export const REPORT_EXTENSIONS = [
   CustomTableHeader,
   Column,
   ColumnBlock,
+  ESignature,
 ];
