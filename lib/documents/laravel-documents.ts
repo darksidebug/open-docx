@@ -3,10 +3,10 @@ import 'server-only';
 import type { JSONContent } from '@tiptap/core';
 import { laravelFetch, LaravelApiError } from '@/lib/auth/laravel';
 
-const DOCUMENT_PATH_TEMPLATE = process.env.LARAVEL_DOCUMENT_PATH || '/api/documents/:id';
-const REPORT_PATH_TEMPLATE = process.env.LARAVEL_REPORT_PATH || '/api/documents/:id/report';
-const DOCUMENTS_LIST_PATH = process.env.LARAVEL_DOCUMENTS_LIST_PATH || '/api/documents';
-const TEMPLATES_LIST_PATH = process.env.LARAVEL_TEMPLATES_LIST_PATH || '/api/service-templates';
+const DOCUMENT_PATH_TEMPLATE = process.env.LARAVEL_DOCUMENT_PATH || '/documents/:id';
+const REPORT_PATH_TEMPLATE = process.env.LARAVEL_REPORT_PATH || '/documents/:id/report';
+const DOCUMENTS_LIST_PATH = process.env.LARAVEL_DOCUMENTS_LIST_PATH || '/documents';
+const TEMPLATES_LIST_PATH = process.env.LARAVEL_TEMPLATES_LIST_PATH || '/service-templates';
 
 export interface ServiceDocument {
   id: string; // UUID
