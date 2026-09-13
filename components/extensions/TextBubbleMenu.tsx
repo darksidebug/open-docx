@@ -128,7 +128,17 @@ export const TextBubbleMenu = () => {
       className='z-20'
       shouldShow={shouldShow}
     >
-      <div className="flex flex-col gap-y-0.75 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200">
+      <div
+        className={cn(
+          'flex flex-col gap-y-0.75 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200',
+          // The plugin only re-evaluates `shouldShow` (and therefore its own
+          // show/hide) on ProseMirror transactions/focus/blur — plain window
+          // scrolling only repositions it, it doesn't hide it. This covers
+          // the scroll case ourselves, purely visually, without unmounting
+          // <BubbleMenu> (which would tear down and re-register its plugin).
+          isScrolling && 'invisible pointer-events-none',
+        )}
+      >
         <div className='flex items-center gap-x-1'>
           <FontFamily />
           <FontSize
