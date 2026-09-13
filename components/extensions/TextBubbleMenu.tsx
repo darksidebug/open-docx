@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Editor } from '@tiptap/core';
+import type { BubbleMenuPluginProps } from '@tiptap/extension-bubble-menu';
 import {
   Bold,
   Italic,
@@ -77,11 +77,38 @@ export const TextBubbleMenu = () => {
     };
   }, []);
 
-  if (!editor || isScrolling) {
+  // Visibility (scrolling, table/image selections) is handled via `shouldShow`
+  // below instead of an early `return null` here. `<BubbleMenu>` registers a
+  // ProseMirror plugin on mount and unregisters it on unmount (see
+  // @tiptap/react/src/menus/BubbleMenu.tsx) — conditionally unmounting it on
+  // every scroll/selection change was tearing that plugin down and back up
+  // constantly, which could race with a collaborative Yjs update rebuilding
+  // node views and throw a React "flushSync called from inside a lifecycle
+  // method" error. `shouldShow` only toggles CSS visibility, keeping the
+  // plugin registered the whole time the editor exists.
+  const shouldShow: Exclude<BubbleMenuPluginProps['shouldShow'], null | undefined> = useCallback(
+    ({ element, view, state, from, to }) => {
+      if (isScrolling || !editor) return false;
+      if (editor.isActive('table') || editor.isActive('customImage')) return false;
+
+      const { doc, selection } = state;
+      const { empty } = selection;
+      const isEmptyTextBlock = !doc.textBetween(from, to).length;
+      const isChildOfMenu = element.contains(document.activeElement);
+      const hasEditorFocus = view.hasFocus() || isChildOfMenu;
+
+      if (!hasEditorFocus || empty || isEmptyTextBlock || !editor.isEditable) {
+        return false;
+      }
+
+      return true;
+    },
+    [editor, isScrolling],
+  );
+
+  if (!editor) {
     return null;
   }
-
-  if (editor.isActive('table') || editor.isActive('customImage')) return null;
 
   const getCurrentValue = () => {
     if (!editor) return 0;
@@ -99,6 +126,7 @@ export const TextBubbleMenu = () => {
     <BubbleMenu
       editor={editor}
       className='z-20'
+      shouldShow={shouldShow}
     >
       <div className="flex flex-col gap-y-0.75 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200">
         <div className='flex items-center gap-x-1'>

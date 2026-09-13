@@ -27,61 +27,24 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
   // never starts. The retry fields below aren't in HocuspocusProvider's own
   // TS type (they belong to the websocket transport), but the library
   // forwards them through regardless, so the cast is just to satisfy tsc.
-  const provider = useMemo(() => {
-    const p = new HocuspocusProvider({
-      url: COLLAB_WS_URL,
-      name: documentId,
-      document: ydoc,
-      delay: 250,
-      minDelay: 250,
-      maxDelay: 2000,
-      factor: 1.5,
-    } as HocuspocusProviderConfiguration);
-
-    // TEMPORARY debug instrumentation — confirms whether/when anything ever
-    // calls setLocalStateField('user', ...) on this provider's awareness.
-    const originalSetLocalStateField = p.awareness!.setLocalStateField.bind(p.awareness);
-    p.awareness!.setLocalStateField = (field: string, value: unknown) => {
-      console.log('[collab][debug] setLocalStateField called:', field, value);
-      return originalSetLocalStateField(field, value);
-    };
-
-    return p;
-  }, [ydoc, documentId]);
+  const provider = useMemo(
+    () =>
+      new HocuspocusProvider({
+        url: COLLAB_WS_URL,
+        name: documentId,
+        document: ydoc,
+        delay: 250,
+        minDelay: 250,
+        maxDelay: 2000,
+        factor: 1.5,
+      } as HocuspocusProviderConfiguration),
+    [ydoc, documentId],
+  );
 
   useEffect(() => {
-    // TEMPORARY debug logging to see what the provider is actually doing —
-    // remove once sync/awareness are confirmed working.
-    const onStatus = (e: { status: string }) => console.log('[collab][debug] status:', e.status);
-    const onConnect = () => console.log('[collab][debug] connect');
-    const onDisconnect = (e: unknown) => console.log('[collab][debug] disconnect', e);
-    const onAuthenticated = () => console.log('[collab][debug] authenticated');
-    const onAuthenticationFailed = (e: unknown) => console.log('[collab][debug] authenticationFailed', e);
-    const onSynced = (e: unknown) => console.log('[collab][debug] synced', e);
-    const onAwarenessUpdate = (e: { states: unknown[] }) =>
-      console.log('[collab][debug] awarenessUpdate, states count:', e.states.length, e.states);
-    const onClose = (e: unknown) => console.log('[collab][debug] close', e);
-
-    provider.on('status', onStatus);
-    provider.on('connect', onConnect);
-    provider.on('disconnect', onDisconnect);
-    provider.on('authenticated', onAuthenticated);
-    provider.on('authenticationFailed', onAuthenticationFailed);
-    provider.on('synced', onSynced);
-    provider.on('awarenessUpdate', onAwarenessUpdate);
-    provider.on('close', onClose);
-
     setCollabProvider(provider);
     return () => {
       setCollabProvider(null);
-      provider.off('status', onStatus);
-      provider.off('connect', onConnect);
-      provider.off('disconnect', onDisconnect);
-      provider.off('authenticated', onAuthenticated);
-      provider.off('authenticationFailed', onAuthenticationFailed);
-      provider.off('synced', onSynced);
-      provider.off('awarenessUpdate', onAwarenessUpdate);
-      provider.off('close', onClose);
       provider.destroy();
       ydoc.destroy();
     };
@@ -90,10 +53,6 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
   const editor = useEditor({
     onCreate({ editor }) {
       setEditor(editor);
-      // TEMPORARY debug logging — remove once the caret bug is resolved.
-      console.log('[collab][debug] editor created, has collaborationCaret ext:',
-        editor.extensionManager.extensions.some((e) => e.name === 'collaborationCaret'));
-      console.log('[collab][debug] local awareness state on create:', provider.awareness?.getLocalState());
     },
     onDestroy() {
       setEditor(null);
@@ -134,11 +93,6 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
         user: {
           name: user.displayName,
           color: user.color,
-        },
-        // TEMPORARY debug logging — remove once the caret bug is resolved.
-        onUpdate: (users) => {
-          console.log('[collab][debug] caret onUpdate users:', users);
-          return null;
         },
       }),
     ],
