@@ -42,9 +42,38 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
   );
 
   useEffect(() => {
+    // TEMPORARY debug logging to see what the provider is actually doing —
+    // remove once sync/awareness are confirmed working.
+    const onStatus = (e: { status: string }) => console.log('[collab][debug] status:', e.status);
+    const onConnect = () => console.log('[collab][debug] connect');
+    const onDisconnect = (e: unknown) => console.log('[collab][debug] disconnect', e);
+    const onAuthenticated = () => console.log('[collab][debug] authenticated');
+    const onAuthenticationFailed = (e: unknown) => console.log('[collab][debug] authenticationFailed', e);
+    const onSynced = (e: unknown) => console.log('[collab][debug] synced', e);
+    const onAwarenessUpdate = (e: { states: unknown[] }) =>
+      console.log('[collab][debug] awarenessUpdate, states count:', e.states.length, e.states);
+    const onClose = (e: unknown) => console.log('[collab][debug] close', e);
+
+    provider.on('status', onStatus);
+    provider.on('connect', onConnect);
+    provider.on('disconnect', onDisconnect);
+    provider.on('authenticated', onAuthenticated);
+    provider.on('authenticationFailed', onAuthenticationFailed);
+    provider.on('synced', onSynced);
+    provider.on('awarenessUpdate', onAwarenessUpdate);
+    provider.on('close', onClose);
+
     setCollabProvider(provider);
     return () => {
       setCollabProvider(null);
+      provider.off('status', onStatus);
+      provider.off('connect', onConnect);
+      provider.off('disconnect', onDisconnect);
+      provider.off('authenticated', onAuthenticated);
+      provider.off('authenticationFailed', onAuthenticationFailed);
+      provider.off('synced', onSynced);
+      provider.off('awarenessUpdate', onAwarenessUpdate);
+      provider.off('close', onClose);
       provider.destroy();
       ydoc.destroy();
     };
