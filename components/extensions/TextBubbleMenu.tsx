@@ -51,6 +51,25 @@ export const TextBubbleMenu = () => {
   const [isScrolling, setIsScrolling] = useState(false);
   const [isOpened, setIsOpened] = useState(false);
   const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
+  // Keeps the bubble menu from rendering underneath the app's own sticky
+  // toolbar (#docs-toolbar in DocsWorkspace.tsx). Measured live (instead of a
+  // hardcoded height) since the toolbar's height varies with whether the
+  // ruler/toolbar rows are enabled.
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+
+  useEffect(() => {
+    const toolbarEl = document.getElementById('docs-toolbar');
+    if (!toolbarEl) return;
+
+    // ResizeObserver fires its callback once immediately upon observe(),
+    // with the element's current size, so no separate initial read is needed.
+    const observer = new ResizeObserver(([entry]) => {
+      setToolbarHeight(entry.contentRect.height);
+    });
+    observer.observe(toolbarEl);
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleSetFontSize = useDebounce((size: string) => {
     editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
@@ -127,6 +146,10 @@ export const TextBubbleMenu = () => {
       editor={editor}
       className='z-20'
       shouldShow={shouldShow}
+      options={{
+        flip: true,
+        shift: { padding: { top: toolbarHeight + 8, bottom: 8, left: 8, right: 8 } },
+      }}
     >
       <div
         className={cn(

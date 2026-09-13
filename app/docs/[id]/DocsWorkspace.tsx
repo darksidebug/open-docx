@@ -29,7 +29,9 @@ const DocsWorkspace = ({ user, documentId, documentTitle }: DocsWorkspaceProps) 
 
   return (
     <div ref={containerRef}  className='bg-[#F9FBFD]'>
-      <div className={cn(
+      <div
+        id="docs-toolbar"
+        className={cn(
           'flex flex-col w-full sticky top-0 left-0 z-20 bg-[#F9FBFD] print:hidden',
           (!enableToolbar && !enableRuler) && 'pb-3 border-b border-gray-200'
         )}
