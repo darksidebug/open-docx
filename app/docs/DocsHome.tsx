@@ -46,7 +46,7 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
   async function handleCreate(option: FormOption) {
     setCreating(true);
     setError(null);
-    console.log('object')
+
     try {
       const response = await fetch('/api/documents', {
         method: 'POST',
@@ -58,6 +58,7 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
         setError(data.message || 'Could not create a new document.');
         return;
       }
+
       router.push(`/docs/${data.document.uuid}`);
     } finally {
       setCreating(false);

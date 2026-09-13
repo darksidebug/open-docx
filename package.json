@@ -23,6 +23,7 @@
     "@hocuspocus/server": "^4.7.0",
     "@hocuspocus/transformer": "^4.7.0",
     "@iconify/react": "^6.0.2",
+    "@react-aria/ssr": "^3.10.1",
     "@react-aria/utils": "^3.34.1",
     "@tiptap/extension-bubble-menu": "^3.31.3",
     "@tiptap/extension-code-block": "^3.31.0",

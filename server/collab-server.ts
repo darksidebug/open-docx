@@ -42,10 +42,10 @@ const reportExtensions = REPORT_EXTENSIONS as Extensions;
 config({ path: '.env.local' });
 config({ path: '.env' });
 
-const LARAVEL_API_URL = process.env.LARAVEL_API_URL || 'http://localhost:8000';
-const LARAVEL_USER_PATH = process.env.LARAVEL_USER_PATH || '/api/user';
-const LARAVEL_DOCUMENT_PATH = process.env.LARAVEL_DOCUMENT_PATH || '/api/documents/:id';
-const LARAVEL_REPORT_PATH = process.env.LARAVEL_REPORT_PATH || '/api/documents/:id/report';
+const LARAVEL_API_URL = 'http://127.0.0.1:8000/v1';
+const LARAVEL_USER_PATH = '/admin/profile';
+const LARAVEL_DOCUMENT_PATH = `/admin/documents/:id`;
+const LARAVEL_REPORT_PATH = `/admin/documents/:id/report`;
 const SESSION_COOKIE = 'ldx_token'; // must match lib/auth/session.ts SESSION_COOKIE
 const PORT = Number(process.env.COLLAB_WS_PORT || 1234);
 const SAVE_DEBOUNCE_MS = Number(process.env.COLLAB_SAVE_DEBOUNCE_MS || 4000);
@@ -80,6 +80,7 @@ async function getUserForToken(token: string) {
 /** Is this user assigned to the ordered service this document UUID belongs to? */
 async function canAccessDocument(token: string, documentId: string) {
   const documentPath = LARAVEL_DOCUMENT_PATH.replace(':id', encodeURIComponent(documentId));
+  console.log('LARAVEL_DOCUMENT_PATH', documentPath)
   const response = await fetch(`${LARAVEL_API_URL}${documentPath}`, {
     headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
   });
@@ -98,6 +99,7 @@ const server = new Server({
   async onAuthenticate({ requestHeaders, documentName }): Promise<AuthContext> {
     const cookies = parseCookies(requestHeaders.get('cookie'));
     const token = cookies[SESSION_COOKIE];
+    console.log('cookies--', cookies)
 
     if (!token) {
       throw new Error('Not authenticated: missing session cookie.');

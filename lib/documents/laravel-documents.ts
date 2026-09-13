@@ -3,11 +3,10 @@ import 'server-only';
 import type { JSONContent } from '@tiptap/core';
 import { laravelFetch, LaravelApiError } from '@/lib/auth/laravel';
 
-const BASE_URI = process.env.LARAVEL_API_URL || 'http://host.docker.internal:8000/v1'
-const DOCUMENT_PATH_TEMPLATE = process.env.LARAVEL_DOCUMENT_PATH || '/documents/:id';
-const REPORT_PATH_TEMPLATE = process.env.LARAVEL_REPORT_PATH || '/documents/:id/report';
-const DOCUMENTS_LIST_PATH = `${BASE_URI}/admin${process.env.LARAVEL_DOCUMENTS_LIST_PATH || '/admin/documents'}`;
-const TEMPLATES_LIST_PATH = process.env.LARAVEL_TEMPLATES_LIST_PATH || '/service-templates';
+const DOCUMENT_PATH_TEMPLATE = '/admin/documents/:id';
+const REPORT_PATH_TEMPLATE = '/admin/documents/:id/report';
+const DOCUMENTS_LIST_PATH = '/admin/documents';
+const TEMPLATES_LIST_PATH = '/admin/service-templates';
 
 export interface ServiceDocument {
   id: string; // UUID
@@ -149,13 +148,12 @@ export async function createDocument(
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
     },
-    body: {
+    body: JSON.stringify({
       service_id: options.service_id,
       document_name: options.document_name ?? 'Untitled document',
       document_content: options?.document_content ?? []
-    } as unknown as FormData,
+    })
   });
 
   if (!response.ok) {
@@ -163,5 +161,5 @@ export async function createDocument(
   }
 
   const data = await response.json();
-  return data.document ?? data.data ?? data;
+  return data.document ?? data.data?.document ?? data?.data ?? data;
 }
