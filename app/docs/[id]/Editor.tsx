@@ -46,6 +46,13 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
   );
 
   useEffect(() => {
+    // Only auto-called by the constructor when HocuspocusProvider creates
+    // its own internal WebSocket transport — since a custom websocketProvider
+    // is supplied here (for the retry-timing tuning above), this provider is
+    // otherwise never actually wired to that transport at all, and nothing
+    // would sync. provider.destroy() (in the cleanup below) already detaches
+    // it again internally.
+    provider.attach();
     setCollabProvider(provider);
     return () => {
       setCollabProvider(null);
