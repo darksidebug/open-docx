@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import type { BubbleMenuPluginProps } from '@tiptap/extension-bubble-menu';
 import {
@@ -125,6 +125,18 @@ export const TextBubbleMenu = () => {
     [editor, isScrolling],
   );
 
+  // Memoized: a fresh object here every render would make <BubbleMenu>'s own
+  // "options changed" effect dispatch a ProseMirror transaction on every
+  // render, which triggers onTransaction -> setEditor -> re-render -> a new
+  // options object -> dispatch again, forever ("Maximum update depth exceeded").
+  const bubbleMenuOptions = useMemo(
+    () => ({
+      flip: true,
+      shift: { padding: { top: toolbarHeight + 8, bottom: 8, left: 8, right: 8 } },
+    }),
+    [toolbarHeight],
+  );
+
   if (!editor) {
     return null;
   }
@@ -146,10 +158,7 @@ export const TextBubbleMenu = () => {
       editor={editor}
       className='z-20'
       shouldShow={shouldShow}
-      options={{
-        flip: true,
-        shift: { padding: { top: toolbarHeight + 8, bottom: 8, left: 8, right: 8 } },
-      }}
+      options={bubbleMenuOptions}
     >
       <div
         className={cn(
