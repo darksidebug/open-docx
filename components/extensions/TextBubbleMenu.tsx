@@ -134,13 +134,20 @@ export const TextBubbleMenu = () => {
   // "options changed" effect dispatch a ProseMirror transaction on every
   // render, which triggers onTransaction -> setEditor -> re-render -> a new
   // options object -> dispatch again, forever ("Maximum update depth exceeded").
-  const bubbleMenuOptions = useMemo(
-    () => ({
-      flip: true,
-      shift: { padding: { top: toolbarHeight + 8, bottom: 8, left: 8, right: 8 } },
-    }),
-    [toolbarHeight],
-  );
+  const bubbleMenuOptions = useMemo(() => {
+    // `flip` (which decides above vs. below the selection) and `shift`
+    // (which nudges the chosen placement to stay in view) each read their
+    // OWN `padding` — giving it only to `shift` left `flip` unaware the
+    // toolbar occupies that space, so it still picked "above" (enough room
+    // by the raw viewport edge) and `shift` just pushed that wrong
+    // placement down, wedging the menu between the toolbar and the ruler
+    // instead of properly flipping below the selection.
+    const padding = { top: toolbarHeight + 8, bottom: 8, left: 8, right: 8 };
+    return {
+      flip: { padding },
+      shift: { padding },
+    };
+  }, [toolbarHeight]);
 
   if (!editor) {
     return null;
