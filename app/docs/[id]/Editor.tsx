@@ -4,7 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useEditorStore } from '@/store/useEditorStore';
 import * as Y from 'yjs';
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
+import { HocuspocusProvider, type HocuspocusProviderConfiguration } from '@hocuspocus/provider';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { COLLAB_WS_URL } from '@/lib/collab/constants';
@@ -18,49 +18,37 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
 
   const ydoc = useMemo(() => new Y.Doc(), []);
 
-  // The retry/backoff config lives on the underlying WebSocket transport,
-  // not the per-document HocuspocusProvider — Hocuspocus's default backoff
-  // caps at 30s between reconnect attempts, so if the very first connection
-  // attempt fails for any transient reason, a since-fixed reconnect can feel
-  // like a long, stuck delay instead of an near-instant retry.
-  const websocketProvider = useMemo(
+  // No custom websocketProvider here on purpose: when one isn't supplied,
+  // HocuspocusProvider creates its own HocuspocusProviderWebsocket internally
+  // (forwarding this whole config object to it, retry fields included) and
+  // sets manageSocket = true, which is also what makes the constructor
+  // auto-call attach() for us. Splitting the socket out into a separate
+  // object skips both of those — nothing gets attached and sync silently
+  // never starts. The retry fields below aren't in HocuspocusProvider's own
+  // TS type (they belong to the websocket transport), but the library
+  // forwards them through regardless, so the cast is just to satisfy tsc.
+  const provider = useMemo(
     () =>
-      new HocuspocusProviderWebsocket({
+      new HocuspocusProvider({
         url: COLLAB_WS_URL,
+        name: documentId,
+        document: ydoc,
         delay: 250,
         minDelay: 250,
         maxDelay: 2000,
         factor: 1.5,
-      }),
-    [],
-  );
-
-  const provider = useMemo(
-    () =>
-      new HocuspocusProvider({
-        websocketProvider,
-        name: documentId,
-        document: ydoc,
-      }),
-    [websocketProvider, ydoc, documentId],
+      } as HocuspocusProviderConfiguration),
+    [ydoc, documentId],
   );
 
   useEffect(() => {
-    // Only auto-called by the constructor when HocuspocusProvider creates
-    // its own internal WebSocket transport — since a custom websocketProvider
-    // is supplied here (for the retry-timing tuning above), this provider is
-    // otherwise never actually wired to that transport at all, and nothing
-    // would sync. provider.destroy() (in the cleanup below) already detaches
-    // it again internally.
-    provider.attach();
     setCollabProvider(provider);
     return () => {
       setCollabProvider(null);
       provider.destroy();
-      websocketProvider.destroy();
       ydoc.destroy();
     };
-  }, [provider, websocketProvider, ydoc, setCollabProvider]);
+  }, [provider, ydoc, setCollabProvider]);
 
   const editor = useEditor({
     onCreate({ editor }) {
