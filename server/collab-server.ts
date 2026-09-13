@@ -33,6 +33,7 @@ import type { Extensions, JSONContent } from '@tiptap/core';
 import * as Y from 'yjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { jwtVerify } from 'jose';
 import { REPORT_EXTENSIONS } from '../lib/collab/report-extensions';
 
 const reportExtensions = REPORT_EXTENSIONS as Extensions;
@@ -68,6 +69,37 @@ function parseCookies(header: string | null): Record<string, string> {
   return out;
 }
 
+interface SessionPayload {
+  token: string; // the raw Laravel bearer token
+  user: Record<string, unknown>;
+}
+
+function getEncodedKey() {
+  const secretKey = process.env.SESSION_SECRET;
+  if (!secretKey) {
+    throw new Error('SESSION_SECRET is not set — required to verify the session cookie.');
+  }
+  return new TextEncoder().encode(secretKey);
+}
+
+/**
+ * The `ldx_token` cookie is NOT the raw Laravel bearer token — it's a signed
+ * JWT wrapping `{ token, user }`, captured together at login (see
+ * lib/auth/session.ts's createSession). Sending the raw cookie value
+ * straight to Laravel as a Bearer token (as this used to do) sends Laravel
+ * our own session JWT instead of its own issued token, which it correctly
+ * rejects as invalid — on every connection, not just actually-expired ones.
+ */
+async function decodeSession(cookieValue: string): Promise<SessionPayload | null> {
+  try {
+    const { payload } = await jwtVerify<SessionPayload>(cookieValue, getEncodedKey(), { algorithms: ['HS256'] });
+    return { token: payload.token, user: payload.user };
+  } catch (error) {
+    console.error('[collab-server] Invalid or expired session cookie:', error);
+    return null;
+  }
+}
+
 async function getUserForToken(token: string) {
   const response = await fetch(`${LARAVEL_API_URL}${LARAVEL_USER_PATH}`, {
     headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
@@ -98,12 +130,18 @@ const server = new Server({
 
   async onAuthenticate({ requestHeaders, documentName }): Promise<AuthContext> {
     const cookies = parseCookies(requestHeaders.get('cookie'));
-    const token = cookies[SESSION_COOKIE];
-    console.log('cookies--', cookies)
+    const sessionCookie = cookies[SESSION_COOKIE];
 
-    if (!token) {
+    if (!sessionCookie) {
       throw new Error('Not authenticated: missing session cookie.');
     }
+
+    const session = await decodeSession(sessionCookie);
+    if (!session) {
+      throw new Error('Not authenticated: invalid or expired session.');
+    }
+
+    const { token } = session;
 
     const user = await getUserForToken(token);
     if (!user) {
