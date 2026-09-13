@@ -4,7 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useEditorStore } from '@/store/useEditorStore';
 import * as Y from 'yjs';
-import { HocuspocusProvider } from '@hocuspocus/provider';
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { COLLAB_WS_URL } from '@/lib/collab/constants';
@@ -18,14 +18,31 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
 
   const ydoc = useMemo(() => new Y.Doc(), []);
 
+  // The retry/backoff config lives on the underlying WebSocket transport,
+  // not the per-document HocuspocusProvider — Hocuspocus's default backoff
+  // caps at 30s between reconnect attempts, so if the very first connection
+  // attempt fails for any transient reason, a since-fixed reconnect can feel
+  // like a long, stuck delay instead of an near-instant retry.
+  const websocketProvider = useMemo(
+    () =>
+      new HocuspocusProviderWebsocket({
+        url: COLLAB_WS_URL,
+        delay: 250,
+        minDelay: 250,
+        maxDelay: 2000,
+        factor: 1.5,
+      }),
+    [],
+  );
+
   const provider = useMemo(
     () =>
       new HocuspocusProvider({
-        url: COLLAB_WS_URL,
+        websocketProvider,
         name: documentId,
         document: ydoc,
       }),
-    [ydoc, documentId],
+    [websocketProvider, ydoc, documentId],
   );
 
   useEffect(() => {
@@ -33,9 +50,10 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
     return () => {
       setCollabProvider(null);
       provider.destroy();
+      websocketProvider.destroy();
       ydoc.destroy();
     };
-  }, [provider, ydoc, setCollabProvider]);
+  }, [provider, websocketProvider, ydoc, setCollabProvider]);
 
   const editor = useEditor({
     onCreate({ editor }) {
