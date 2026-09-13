@@ -43,7 +43,7 @@ export async function createSession(token: string, user: LaravelUser) {
   const session = await new SignJWT({ token, user } satisfies SessionPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime('30d')
     .sign(getEncodedKey());
 
   const cookieStore = await cookies();
@@ -52,7 +52,11 @@ export async function createSession(token: string, user: LaravelUser) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days, matching setExpirationTime above
+    // 30 days, matching setExpirationTime above and Laravel's own token
+    // validity — otherwise this cookie could silently expire (and get
+    // dropped by the browser) well before the underlying Laravel token
+    // actually does, looking like a "missing session" for a still-valid user.
+    maxAge: 60 * 60 * 24 * 30,
   });
 }
 
