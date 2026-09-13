@@ -26,5 +26,5 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
     color: getColorForUser(user.id),
   };
 
-  return <DocsWorkspace user={collabUser} documentId={documentId} documentTitle={document.title} />;
+  return <DocsWorkspace user={collabUser} documentId={documentId} documentTitle={document.document_name ?? 'Untitled document'} />;
 }

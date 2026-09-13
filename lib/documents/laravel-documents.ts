@@ -3,14 +3,15 @@ import 'server-only';
 import type { JSONContent } from '@tiptap/core';
 import { laravelFetch, LaravelApiError } from '@/lib/auth/laravel';
 
+const BASE_URI = process.env.LARAVEL_API_URL || 'http://host.docker.internal:8000/v1'
 const DOCUMENT_PATH_TEMPLATE = process.env.LARAVEL_DOCUMENT_PATH || '/documents/:id';
 const REPORT_PATH_TEMPLATE = process.env.LARAVEL_REPORT_PATH || '/documents/:id/report';
-const DOCUMENTS_LIST_PATH = process.env.LARAVEL_DOCUMENTS_LIST_PATH || '/documents';
+const DOCUMENTS_LIST_PATH = `${BASE_URI}/admin${process.env.LARAVEL_DOCUMENTS_LIST_PATH || '/admin/documents'}`;
 const TEMPLATES_LIST_PATH = process.env.LARAVEL_TEMPLATES_LIST_PATH || '/service-templates';
 
 export interface ServiceDocument {
   id: string; // UUID
-  title?: string;
+  document_name?: string;
   order_id?: string | number;
   [key: string]: unknown;
 }
@@ -24,7 +25,9 @@ export interface DocumentReport {
 /** One row in the "Recent documents" list — documents this user is assigned to. */
 export interface DocumentSummary {
   id: string;
-  title: string;
+  document_name: string;
+  service_id: number;
+  document_content: Record<string, any>[];
   updated_at: string | null;
   opened_at?: string | null;
   owner_name?: string | null;
@@ -37,6 +40,12 @@ export interface ServiceTemplate {
   name: string;
   category?: string | null;
   thumbnail_url?: string | null;
+}
+
+export interface FormOption {
+  service_id: number;
+  document_name: string;
+  document_content?: Record<string, any>[] | null
 }
 
 function documentPath(id: string) {
@@ -67,7 +76,7 @@ export async function authorizeDocument(token: string, documentId: string): Prom
   }
 
   const data = await response.json();
-  return data.document ?? data.data ?? data;
+  return { document_name: data.document_name ?? data.data?.document_name };
 }
 
 /**
@@ -129,16 +138,28 @@ export async function listTemplates(token: string): Promise<ServiceTemplate[]> {
  */
 export async function createDocument(
   token: string,
-  options: { templateId?: string; title?: string } = {},
+  options: {
+    service_id: number;
+    document_name?: string;
+    document_content: Record<string, any>[]
+  },
 ): Promise<DocumentSummary> {
+  console.log(DOCUMENTS_LIST_PATH)
   const response = await laravelFetch(DOCUMENTS_LIST_PATH, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ template_id: options.templateId ?? null, title: options.title ?? null }),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: {
+      service_id: options.service_id,
+      document_name: options.document_name ?? 'Untitled document',
+      document_content: options?.document_content ?? []
+    } as unknown as FormData,
   });
 
   if (!response.ok) {
-    throw new LaravelApiError('Failed to create a new document.', response.status);
+    throw new LaravelApiError(`Failed to create a new document. ${DOCUMENTS_LIST_PATH}`, response.status);
   }
 
   const data = await response.json();

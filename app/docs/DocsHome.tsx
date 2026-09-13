@@ -3,8 +3,9 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Grid2x2, List, ArrowDownAZ, FileText, Plus, MoreVertical } from 'lucide-react';
-import type { DocumentSummary, ServiceTemplate } from '@/lib/documents/laravel-documents';
+import type { DocumentSummary, FormOption, ServiceTemplate } from '@/lib/documents/laravel-documents';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { useEditorStore } from '@/store/useEditorStore';
 
 interface DocsHomeProps {
   documents: DocumentSummary[];
@@ -29,32 +30,35 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
   const [sortAz, setSortAz] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { documentName } = useEditorStore();
 
   const sortedDocuments = useMemo(() => {
-    const copy = [...documents];
-    if (sortAz) {
-      copy.sort((a, b) => a.title.localeCompare(b.title));
-    } else {
-      copy.sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime());
-    }
-    return copy;
+    return [];
+    // const copy = [...documents];
+    // if (sortAz) {
+    //   copy.sort((a, b) => a.title.localeCompare(b.title));
+    // } else {
+    //   copy.sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime());
+    // }
+    // return copy;
   }, [documents, sortAz]);
 
-  async function handleCreate(templateId?: string) {
+  async function handleCreate(option: FormOption) {
     setCreating(true);
     setError(null);
+    console.log('object')
     try {
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId }),
+        body: JSON.stringify({ ...option }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setError(data.message || 'Could not create a new document.');
         return;
       }
-      router.push(`/docs/${data.document.id}`);
+      router.push(`/docs/${data.document.uuid}`);
     } finally {
       setCreating(false);
     }
@@ -72,7 +76,14 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
           <div className="flex flex-wrap gap-4">
             <button
               type="button"
-              onClick={() => handleCreate()}
+              onClick={() => {
+                console.log('object--')
+                handleCreate({
+                  service_id: 1,
+                  document_name: documentName,
+                  document_content: null
+                })
+              }}
               disabled={creating}
               className="w-36 shrink-0 rounded-md border border-gray-300 bg-white text-left hover:shadow-md disabled:opacity-50 overflow-hidden"
             >
@@ -86,7 +97,7 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
               <button
                 key={template.id}
                 type="button"
-                onClick={() => handleCreate(template.id)}
+                // onClick={() => handleCreate(template.id)}
                 disabled={creating}
                 className="w-36 shrink-0 rounded-md border border-gray-300 bg-white text-left hover:shadow-md disabled:opacity-50 overflow-hidden"
               >
@@ -165,7 +176,7 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
                   : 'flex flex-col divide-y divide-gray-100 rounded border border-gray-200 bg-white'
               }
             >
-              {sortedDocuments.map((doc) =>
+              {/* {sortedDocuments.map((doc) =>
                 view === 'grid' ? (
                   <button
                     key={doc.id}
@@ -205,7 +216,7 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
                     </span>
                   </button>
                 ),
-              )}
+              )} */}
             </div>
           )}
         </div>

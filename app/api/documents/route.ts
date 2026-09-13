@@ -13,8 +13,9 @@ export async function POST(request: Request) {
 
   try {
     const document = await createDocument(token, {
-      templateId: body.templateId,
-      title: body.title,
+      service_id: body.service_id,
+      document_name: body.document_name,
+      document_content: body.document_content
     });
     return NextResponse.json({ document });
   } catch (error) {
