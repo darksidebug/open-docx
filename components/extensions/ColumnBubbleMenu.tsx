@@ -71,10 +71,15 @@ export const ColumnBubbleMenu = () => {
       }, 150);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    // `capture: true` is required here: scroll events don't bubble, so a
+    // listener on `window` in the (default) bubble phase never sees scrolling
+    // inside a nested scrollable element (e.g. a wide table's own
+    // `.tableWrapper { overflow-x: auto }`, see app/globals.css) — only the
+    // capture phase reaches it.
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll, { capture: true });
       clearTimeout(scrollTimeout);
     };
   }, []);
