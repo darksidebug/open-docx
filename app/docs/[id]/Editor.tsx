@@ -82,6 +82,10 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
   const editor = useEditor({
     onCreate({ editor }) {
       setEditor(editor);
+      // TEMPORARY debug logging — remove once the caret bug is resolved.
+      console.log('[collab][debug] editor created, has collaborationCaret ext:',
+        editor.extensionManager.extensions.some((e) => e.name === 'collaborationCaret'));
+      console.log('[collab][debug] local awareness state on create:', provider.awareness?.getLocalState());
     },
     onDestroy() {
       setEditor(null);
@@ -122,6 +126,11 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
         user: {
           name: user.displayName,
           color: user.color,
+        },
+        // TEMPORARY debug logging — remove once the caret bug is resolved.
+        onUpdate: (users) => {
+          console.log('[collab][debug] caret onUpdate users:', users);
+          return null;
         },
       }),
     ],
