@@ -27,19 +27,27 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
   // never starts. The retry fields below aren't in HocuspocusProvider's own
   // TS type (they belong to the websocket transport), but the library
   // forwards them through regardless, so the cast is just to satisfy tsc.
-  const provider = useMemo(
-    () =>
-      new HocuspocusProvider({
-        url: COLLAB_WS_URL,
-        name: documentId,
-        document: ydoc,
-        delay: 250,
-        minDelay: 250,
-        maxDelay: 2000,
-        factor: 1.5,
-      } as HocuspocusProviderConfiguration),
-    [ydoc, documentId],
-  );
+  const provider = useMemo(() => {
+    const p = new HocuspocusProvider({
+      url: COLLAB_WS_URL,
+      name: documentId,
+      document: ydoc,
+      delay: 250,
+      minDelay: 250,
+      maxDelay: 2000,
+      factor: 1.5,
+    } as HocuspocusProviderConfiguration);
+
+    // TEMPORARY debug instrumentation — confirms whether/when anything ever
+    // calls setLocalStateField('user', ...) on this provider's awareness.
+    const originalSetLocalStateField = p.awareness!.setLocalStateField.bind(p.awareness);
+    p.awareness!.setLocalStateField = (field: string, value: unknown) => {
+      console.log('[collab][debug] setLocalStateField called:', field, value);
+      return originalSetLocalStateField(field, value);
+    };
+
+    return p;
+  }, [ydoc, documentId]);
 
   useEffect(() => {
     // TEMPORARY debug logging to see what the provider is actually doing —
