@@ -11,6 +11,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { x, y, width, height, src, signedBy, signedAt } = node.attrs;
+  const isActive = selected || isDragging || isResizing;
 
   const handleDragStart = useCallback(
     (e: React.PointerEvent) => {
@@ -105,7 +106,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
       <div
         onPointerDown={handleDragStart}
         className={`relative size-full cursor-move rounded border-2 border-dashed bg-white/80 ${
-          selected || isDragging ? "border-blue-400" : "border-gray-300"
+          isActive ? "border-blue-400" : "border-transparent"
         }`}
       >
         <input
@@ -188,7 +189,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
 
         {showPad && <SignaturePad onSave={handleSaveSignature} onCancel={() => setShowPad(false)} />}
 
-        {src && (signedBy || signedAt) && (
+        {isActive && src && (signedBy || signedAt) && (
           <div className="absolute -bottom-4 left-0 whitespace-nowrap text-[10px] text-gray-400">
             {signedBy ? `Signed by ${signedBy}` : "Signed"}
             {signedAt ? ` · ${new Date(signedAt).toLocaleDateString()}` : ""}
