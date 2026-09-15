@@ -5,6 +5,56 @@ interface SignaturePadProps {
   onCancel: () => void;
 }
 
+/**
+ * Crops a canvas down to the bounding box of its non-transparent pixels
+ * (plus a small padding), so the exported image's own bounds tightly wrap
+ * the drawn ink instead of whatever blank margin happens to surround it on
+ * the drawing pad. Without this, the signature can look off-center in its
+ * frame even though the frame itself centers the image — the image's own
+ * pixel bounds just aren't centered on the ink.
+ */
+function trimCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  const { width, height } = canvas;
+  const { data } = ctx.getImageData(0, 0, width, height);
+
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return canvas; // nothing drawn
+
+  const padding = 6;
+  const trimmedX = Math.max(0, minX - padding);
+  const trimmedY = Math.max(0, minY - padding);
+  const trimmedWidth = Math.min(width, maxX + padding) - trimmedX + 1;
+  const trimmedHeight = Math.min(height, maxY + padding) - trimmedY + 1;
+
+  const trimmedCanvas = document.createElement("canvas");
+  trimmedCanvas.width = trimmedWidth;
+  trimmedCanvas.height = trimmedHeight;
+  trimmedCanvas
+    .getContext("2d")
+    ?.drawImage(canvas, trimmedX, trimmedY, trimmedWidth, trimmedHeight, 0, 0, trimmedWidth, trimmedHeight);
+
+  return trimmedCanvas;
+}
+
 /** A small canvas-based "draw your signature" popover — mouse or touch. */
 const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -72,7 +122,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel }) => {
   const handleSave = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || isEmpty) return;
-    onSave(canvas.toDataURL("image/png"));
+    onSave(trimCanvas(canvas).toDataURL("image/png"));
   }, [isEmpty, onSave]);
 
   return (
