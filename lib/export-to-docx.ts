@@ -28,7 +28,6 @@ import {
   Document,
   ExternalHyperlink,
   HeadingLevel,
-  HorizontalPositionRelativeFrom,
   ImageRun,
   LevelFormat,
   LineRuleType,
@@ -41,20 +40,15 @@ import {
   TableCell,
   TableRow,
   TextRun,
-  TextWrappingType,
   UnderlineType,
   VerticalAlignTable,
   VerticalMergeType,
-  VerticalPositionRelativeFrom,
   WidthType,
   convertInchesToTwip,
   type IRunOptions,
   type ILevelsOptions,
   type ParagraphChild,
 } from "docx";
-
-// 1px at the standard 96dpi the editor renders at == 9525 EMU (914400 EMU/inch / 96).
-const EMU_PER_PX = 9525;
 
 // ---------------------------------------------------------------------------
 // Tiptap / ProseMirror JSON types
@@ -860,12 +854,11 @@ async function imageNodeToRun(node: TiptapNode, state: ConvertState): Promise<Im
 }
 
 /**
- * A signed eSignature field -> a floating (freely positioned) image, placed
- * at the same page-relative pixel coordinates the editor's drag-and-drop
- * positioning uses (see lib/extensions/esignature.ts), converted straight to
- * EMUs at 96dpi. This is a best-effort visual match, not pixel-perfect —
- * Word's own page margins/rendering can shift things slightly from the
- * browser preview.
+ * A signed eSignature field -> a normal (non-floating) image sized to its
+ * stored width/height, placed in the paragraph flow like any other image.
+ * This node used to be a floating image positioned via page-absolute x/y
+ * coordinates — see lib/extensions/esignature.ts for why that was dropped
+ * in favor of flow placement.
  */
 async function eSignatureNodeToRun(node: TiptapNode, state: ConvertState): Promise<ImageRun | null> {
   const src = extractImageSrc(node);
@@ -882,19 +875,11 @@ async function eSignatureNodeToRun(node: TiptapNode, state: ConvertState): Promi
 
   const width = Math.round(node.attrs?.width) || resolved.width;
   const height = Math.round(node.attrs?.height) || resolved.height;
-  const x = Math.round(node.attrs?.x) || 0;
-  const y = Math.round(node.attrs?.y) || 0;
 
   return new ImageRun({
     type: resolved.type,
     data: resolved.data,
     transformation: { width, height },
-    floating: {
-      horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: x * EMU_PER_PX },
-      verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: y * EMU_PER_PX },
-      wrap: { type: TextWrappingType.NONE },
-      allowOverlap: true,
-    },
   });
 }
 
@@ -1117,7 +1102,28 @@ async function convertBlockNode(
       // an image node with no src — there's nothing to place on the page.
       if (!node.attrs?.src) return [];
       const run = await eSignatureNodeToRun(node, state);
-      return run ? [new Paragraph({ children: [run] })] : [];
+      if (!run) return [];
+
+      const alignment = imageAlignmentFromAttrs(node.attrs);
+      const name = typeof node.attrs?.name === "string" && node.attrs.name.trim() ? node.attrs.name : " ";
+
+      // A full signature block, matching the editor's layout (see
+      // lib/extensions/esignature.ts): the image, then the signer's typed
+      // name on an underlined line, then a fixed "Name and Signature"
+      // caption — the same three-part layout Word's own
+      // Insert > Signature Line produces.
+      return [
+        new Paragraph({ children: [run], alignment }),
+        new Paragraph({
+          alignment,
+          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "6B7280" } },
+          children: [new TextRun({ text: name })],
+        }),
+        new Paragraph({
+          alignment,
+          children: [new TextRun({ text: "Name and Signature", size: 16, color: "6B7280" })],
+        }),
+      ];
     }
 
     case "verticalAlign": {

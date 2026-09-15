@@ -1,46 +1,17 @@
 import React, { useCallback, useRef, useState } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
-import { Move, MoveDiagonal, PenLine, Trash2, Upload } from "lucide-react";
+import { AlignLeft, AlignCenter, AlignRight, MoveDiagonal, PenLine, Trash2, Upload } from "lucide-react";
 import SignaturePad from "./SignaturePad";
 
 const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
   const { node, updateAttributes, deleteNode, selected } = props;
-  const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showPad, setShowPad] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const { x, y, width, height, src, signedBy, signedAt } = node.attrs;
-  const isActive = selected || isDragging || isResizing;
-
-  const handleDragStart = useCallback(
-    (e: React.PointerEvent) => {
-      // Only the box itself starts a move — buttons/handles stop propagation.
-      e.preventDefault();
-      setIsDragging(true);
-
-      const startClientX = e.clientX;
-      const startClientY = e.clientY;
-      const startX = x;
-      const startY = y;
-
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        const nextX = Math.max(0, startX + (moveEvent.clientX - startClientX));
-        const nextY = Math.max(0, startY + (moveEvent.clientY - startClientY));
-        updateAttributes({ x: Math.round(nextX), y: Math.round(nextY) });
-      };
-
-      const handlePointerUp = () => {
-        setIsDragging(false);
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-      };
-
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-    },
-    [x, y, updateAttributes],
-  );
+  const { width, height, src, name } = node.attrs;
+  const alignment = node.attrs.alignment || "left";
+  const isActive = selected || isResizing;
 
   const handleResizeStart = useCallback(
     (e: React.PointerEvent) => {
@@ -96,71 +67,57 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
     [updateAttributes],
   );
 
+  const getContainerStyle = (): React.CSSProperties => {
+    switch (alignment) {
+      case "center":
+        return { display: "flex", justifyContent: "center" };
+      case "right":
+        return { display: "flex", justifyContent: "flex-end" };
+      case "left":
+      default:
+        return { display: "flex", justifyContent: "flex-start" };
+    }
+  };
+
   return (
-    <NodeViewWrapper
-      as="div"
-      contentEditable={false}
-      style={{ position: "absolute", left: x, top: y, width, height, zIndex: selected ? 20 : 10 }}
-      className="group"
-    >
+    <NodeViewWrapper as="div" contentEditable={false} style={getContainerStyle()} className="my-4 group">
       <div
-        onPointerDown={handleDragStart}
-        className={`relative size-full cursor-move rounded border-2 border-dashed bg-white/80 ${
+        style={{ width }}
+        className={`relative rounded border-2 border-dashed bg-white/80 p-1.5 ${
           isActive ? "border-blue-400" : "border-transparent"
         }`}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={handleFileChange}
-          onPointerDown={(e) => e.stopPropagation()}
-        />
-
-        {src ? (
-          <img src={src} alt="Signature" className="size-full object-contain p-1" draggable={false} />
-        ) : (
-          <div
-            className="flex size-full flex-col items-center justify-center gap-y-1 text-gray-400"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-x-3">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPad(true);
-                }}
-                className="flex flex-col items-center gap-y-0.5 hover:text-blue-500"
-              >
-                <PenLine className="size-4" />
-                <span className="text-[10px]">Draw</span>
-              </button>
-              <div className="h-6 w-px bg-gray-200" />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  fileInputRef.current?.click();
-                }}
-                className="flex flex-col items-center gap-y-0.5 hover:text-blue-500"
-              >
-                <Upload className="size-4" />
-                <span className="text-[10px]">Upload</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Hover/selected toolbar */}
         <div
           className={`absolute -top-9 left-0 flex items-center gap-x-1 rounded-md border border-gray-200 bg-white p-1 shadow-lg transition-opacity ${
-            selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
-          onPointerDown={(e) => e.stopPropagation()}
         >
-          <Move className="size-3.5 text-gray-400" />
+          <button
+            type="button"
+            onClick={() => updateAttributes({ alignment: "left" })}
+            className={`rounded p-1 hover:bg-gray-100 ${alignment === "left" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            title="Align Left"
+          >
+            <AlignLeft className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => updateAttributes({ alignment: "center" })}
+            className={`rounded p-1 hover:bg-gray-100 ${alignment === "center" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            title="Align Center"
+          >
+            <AlignCenter className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => updateAttributes({ alignment: "right" })}
+            className={`rounded p-1 hover:bg-gray-100 ${alignment === "right" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            title="Align Right"
+          >
+            <AlignRight className="size-3.5" />
+          </button>
+          <div className="h-4 w-px bg-gray-200 mx-0.5" />
           <button
             type="button"
             onClick={() => setShowPad(true)}
@@ -187,25 +144,76 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           </button>
         </div>
 
-        {showPad && <SignaturePad onSave={handleSaveSignature} onCancel={() => setShowPad(false)} />}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={handleFileChange}
+          onPointerDown={(e) => e.stopPropagation()}
+        />
 
-        {isActive && src && (signedBy || signedAt) && (
-          <div className="absolute -bottom-4 left-0 whitespace-nowrap text-[10px] text-gray-400">
-            {signedBy ? `Signed by ${signedBy}` : "Signed"}
-            {signedAt ? ` · ${new Date(signedAt).toLocaleDateString()}` : ""}
+        {/* Signature image area */}
+        <div style={{ height }} className="relative">
+          {src ? (
+            <img src={src} alt="Signature" className="size-full object-contain" draggable={false} />
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center gap-y-1 text-gray-400">
+              <div className="flex items-center gap-x-3">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPad(true);
+                  }}
+                  className="flex flex-col items-center gap-y-0.5 hover:text-blue-500"
+                >
+                  <PenLine className="size-4" />
+                  <span className="text-[10px]">Draw</span>
+                </button>
+                <div className="h-6 w-px bg-gray-200" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex flex-col items-center gap-y-0.5 hover:text-blue-500"
+                >
+                  <Upload className="size-4" />
+                  <span className="text-[10px]">Upload</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Resize handle (resizes the image area only) */}
+          <div
+            onPointerDown={handleResizeStart}
+            className={`absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 shadow transition-opacity ${
+              isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+            title="Drag to resize"
+          >
+            <MoveDiagonal className="size-3 text-gray-500" />
           </div>
-        )}
-
-        {/* Resize handle */}
-        <div
-          onPointerDown={handleResizeStart}
-          className={`absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 shadow transition-opacity ${
-            selected || isResizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          }`}
-          title="Drag to resize"
-        >
-          <MoveDiagonal className="size-3 text-gray-500" />
         </div>
+
+        {/* Signer's typed name, on an underlined line beneath the image */}
+        <input
+          type="text"
+          value={name || ""}
+          onChange={(e) => updateAttributes({ name: e.target.value })}
+          onPointerDown={(e) => e.stopPropagation()}
+          placeholder="Enter your name"
+          draggable={false}
+          className="w-full border-0 border-b border-gray-500 bg-transparent text-center text-[13px] outline-none placeholder:text-gray-400 pb-0.5"
+        />
+
+        {/* Fixed caption */}
+        <div className="mt-1 text-center text-[10px] text-gray-500">Name and Signature</div>
+
+        {showPad && <SignaturePad onSave={handleSaveSignature} onCancel={() => setShowPad(false)} />}
       </div>
     </NodeViewWrapper>
   );

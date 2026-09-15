@@ -1427,12 +1427,12 @@ async function imageNodeToContent(
 }
 
 /**
- * A signed eSignature field -> an image placed at an absolute page position
- * (pdfmake's `absolutePosition`, in pt), converted from the same page-relative
- * pixel coordinates the editor's drag-and-drop positioning uses (see
- * lib/extensions/esignature.ts) at the standard 96dpi -> pt factor (0.75)
- * already used for every other measurement in this file. Best-effort visual
- * match, not pixel-perfect.
+ * A signed eSignature field -> a normal (non-floating) image sized to its
+ * stored width/height, placed in the content flow like any other image.
+ * This node used to be placed at an absolute page position (pdfmake's
+ * `absolutePosition`) via page-absolute x/y coordinates — see
+ * lib/extensions/esignature.ts for why that was dropped in favor of flow
+ * placement.
  */
 async function eSignatureNodeToContent(
   node: TiptapNode,
@@ -1455,8 +1455,6 @@ async function eSignatureNodeToContent(
 
   const width = Math.round(node.attrs?.width) || resolved.width;
   const height = Math.round(node.attrs?.height) || resolved.height;
-  const x = Math.round(node.attrs?.x) || 0;
-  const y = Math.round(node.attrs?.y) || 0;
 
   const base64 =
     typeof resolved.data === "string"
@@ -1467,7 +1465,7 @@ async function eSignatureNodeToContent(
     image: `data:image/${resolved.type};base64,${base64}`,
     width: Math.round(width * 0.75),
     height: Math.round(height * 0.75),
-    absolutePosition: { x: Math.round(x * 0.75), y: Math.round(y * 0.75) },
+    alignment: imageAlignmentFromAttrs(node.attrs),
   };
 }
 
@@ -2207,7 +2205,31 @@ async function convertBlockNode(
       // Unsigned fields (no drawn signature yet) export as nothing.
       if (!node.attrs?.src) return [];
       const signature = await eSignatureNodeToContent(node, state);
-      return signature ? [signature] : [];
+      if (!signature) return [];
+
+      const alignment = imageAlignmentFromAttrs(node.attrs);
+      const name = typeof node.attrs?.name === "string" && node.attrs.name.trim() ? node.attrs.name : " ";
+      const widthPt = Math.round((Math.round(node.attrs?.width) || 220) * 0.75);
+
+      // A full signature block, matching the editor's layout (see
+      // lib/extensions/esignature.ts): the image, then the signer's typed
+      // name on an underlined line (drawn with a canvas line — pdfmake text
+      // has no native "line below" option outside of tables), then a fixed
+      // "Name and Signature" caption.
+      const underline: Content = {
+        canvas: [{ type: "line", x1: 0, y1: 0, x2: widthPt, y2: 0, lineWidth: 1, lineColor: "#6b7280" }],
+        alignment,
+      };
+      const nameAndCaption: Content = {
+        alignment,
+        stack: [
+          { text: name, alignment: "center", fontSize: 11, margin: [0, 2, 0, 2] } as ContentText,
+          underline,
+          { text: "Name and Signature", alignment: "center", fontSize: 8, color: "#6b7280", margin: [0, 2, 0, 0] } as ContentText,
+        ],
+      };
+
+      return [signature, nameAndCaption];
     }
 
     // -----------------------------------------------------------------------
