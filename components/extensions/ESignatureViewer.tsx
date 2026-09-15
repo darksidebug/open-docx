@@ -1,17 +1,59 @@
 import React, { useCallback, useRef, useState } from "react";
-import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
+import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { AlignLeft, AlignCenter, AlignRight, MoveDiagonal, PenLine, Trash2, Upload } from "lucide-react";
 import SignaturePad from "./SignaturePad";
 
 const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
   const { node, updateAttributes, deleteNode, selected } = props;
   const [isResizing, setIsResizing] = useState(false);
+  const [isMovingImage, setIsMovingImage] = useState(false);
   const [showPad, setShowPad] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const { width, height, src, name } = node.attrs;
+  const { width, height, src } = node.attrs;
+  const isNameEmpty = node.content.size === 0;
+  const imageX = node.attrs.imageX || 0;
+  const imageY = node.attrs.imageY || 0;
   const alignment = node.attrs.alignment || "left";
-  const isActive = selected || isResizing;
+  const isActive = selected || isResizing || isMovingImage;
+
+  // Nudges the image within its own fixed-size box (e.g. to use the slack
+  // space `object-fit: contain` leaves when the image's aspect ratio doesn't
+  // match the box's) — a local, in-frame adjustment, not a page position.
+  const handleImageDragStart = useCallback(
+    (e: React.PointerEvent) => {
+      if (!src) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setIsMovingImage(true);
+
+      const startClientX = e.clientX;
+      const startClientY = e.clientY;
+      const startImageX = imageX;
+      const startImageY = imageY;
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const nextImageX = startImageX + (moveEvent.clientX - startClientX);
+        const nextImageY = startImageY + (moveEvent.clientY - startClientY);
+        // Clamped so the image can't be dragged comically far past its box
+        // (object-position has no inherent limit of its own).
+        updateAttributes({
+          imageX: Math.round(Math.max(-width / 2, Math.min(width / 2, nextImageX))),
+          imageY: Math.round(Math.max(-height / 2, Math.min(height / 2, nextImageY))),
+        });
+      };
+
+      const handlePointerUp = () => {
+        setIsMovingImage(false);
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+    },
+    [src, width, height, imageX, imageY, updateAttributes],
+  );
 
   const handleResizeStart = useCallback(
     (e: React.PointerEvent) => {
@@ -80,12 +122,18 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
   };
 
   return (
-    <NodeViewWrapper as="div" contentEditable={false} style={getContainerStyle()} className="my-4 group">
+    <NodeViewWrapper as="div" style={getContainerStyle()} className="my-4 group">
       <div
         style={{ width }}
         className={`relative rounded border-2 border-dashed bg-white/80 p-1.5 ${
           isActive ? "border-blue-400" : "border-transparent"
         }`}
+        // Everything in this block is decorative chrome, not editable
+        // content — EXCEPT the <NodeViewContent> further down, which
+        // overrides this back to editable for just its own DOM node (a
+        // standard, browser-supported "editable island" nested inside a
+        // non-editable ancestor).
+        contentEditable={false}
       >
         {/* Hover/selected toolbar */}
         <div
@@ -154,9 +202,16 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
         />
 
         {/* Signature image area */}
-        <div style={{ height }} className="relative">
+        <div style={{ height }} className="relative overflow-hidden">
           {src ? (
-            <img src={src} alt="Signature" className="size-full object-contain" draggable={false} />
+            <img
+              src={src}
+              alt="Signature"
+              className="size-full object-contain cursor-move"
+              style={{ objectPosition: `calc(50% + ${imageX}px) calc(50% + ${imageY}px)` }}
+              draggable={false}
+              onPointerDown={handleImageDragStart}
+            />
           ) : (
             <div className="flex size-full flex-col items-center justify-center gap-y-1 text-gray-400">
               <div className="flex items-center gap-x-3">
@@ -199,16 +254,17 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           </div>
         </div>
 
-        {/* Signer's typed name, on an underlined line beneath the image */}
-        <input
-          type="text"
-          value={name || ""}
-          onChange={(e) => updateAttributes({ name: e.target.value })}
-          onPointerDown={(e) => e.stopPropagation()}
-          placeholder="Enter your name"
-          draggable={false}
-          className="w-full border-0 border-b border-gray-500 bg-transparent text-center text-[13px] outline-none placeholder:text-gray-400 pb-0.5"
-        />
+        {/* Signer's typed name — real editable ProseMirror content (not a
+            plain attribute), so marks like bold apply to it normally via
+            the editor's own toolbar/shortcuts. */}
+        <div className="relative border-b border-gray-500 pb-0.5">
+          {isNameEmpty && (
+            <span className="pointer-events-none absolute inset-0 text-center text-[13px] text-gray-400">
+              Enter your name
+            </span>
+          )}
+          <NodeViewContent as="div" className="min-h-[1.2em] w-full text-center text-[13px] outline-none" />
+        </div>
 
         {/* Fixed caption */}
         <div className="mt-1 text-center text-[10px] text-gray-500">Name and Signature</div>

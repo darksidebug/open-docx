@@ -37,9 +37,16 @@ export const ESignature = Node.create<ESignatureOptions>({
 
   group: "block",
 
-  atom: true,
+  // The signer's typed name is real editable ProseMirror content (rendered
+  // through the NodeView's <NodeViewContent>, see ESignatureViewer.tsx)
+  // rather than a plain string attribute, specifically so marks like bold
+  // apply to it the same way they do anywhere else in the document — a
+  // plain HTML <input>'s value can never carry rich formatting. That rules
+  // out `atom: true` (atom nodes have no content) and `draggable: true`
+  // (dragging a node with live editable text inside it fights with normal
+  // text selection/editing).
 
-  draggable: true,
+  content: "inline*",
 
   addOptions() {
     return {
@@ -69,11 +76,23 @@ export const ESignature = Node.create<ESignatureOptions>({
         parseHTML: (element) => element.getAttribute("data-src"),
         renderHTML: (attributes) => (attributes.src ? { "data-src": attributes.src } : {}),
       },
-      /** The signer's typed name, shown on the line under the signature image. */
-      name: {
-        default: null,
-        parseHTML: (element) => element.getAttribute("data-name"),
-        renderHTML: (attributes) => (attributes.name ? { "data-name": attributes.name } : {}),
+      // Lets the drawn/uploaded image be nudged around within its own fixed
+      // width/height box (e.g. when its aspect ratio doesn't match the
+      // box's, object-fit: contain leaves slack space on one axis) — a plain
+      // pixel offset from center, applied via CSS `object-position`. This is
+      // purely a local, in-frame adjustment: unlike the old x/y attrs this
+      // node used to have, it has no meaning outside this box, so it can't
+      // drift out of sync with the surrounding document the way the removed
+      // page-absolute positioning did.
+      imageX: {
+        default: 0,
+        parseHTML: (element) => Number(element.getAttribute("data-image-x")) || 0,
+        renderHTML: (attributes) => (attributes.imageX ? { "data-image-x": attributes.imageX } : {}),
+      },
+      imageY: {
+        default: 0,
+        parseHTML: (element) => Number(element.getAttribute("data-image-y")) || 0,
+        renderHTML: (attributes) => (attributes.imageY ? { "data-image-y": attributes.imageY } : {}),
       },
       signedAt: {
         default: null,
@@ -84,15 +103,25 @@ export const ESignature = Node.create<ESignatureOptions>({
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-type="e-signature"]' }];
+    return [
+      {
+        tag: 'div[data-type="e-signature"]',
+        // The node's actual (editable) content lives in the inner
+        // [data-e-signature-name] div, not the outer div as a whole — the
+        // image/caption around it are just static markup, not content.
+        contentElement: (element) => (element as HTMLElement).querySelector("[data-e-signature-name]") ?? element,
+      },
+    ];
   },
 
   // A full signature block: the drawn/uploaded image, then the signer's
-  // typed name on an underlined line, then a fixed "Name and Signature"
-  // caption — matching a standard printed signature block (Word's
-  // Insert > Signature Line renders the same three-part layout).
+  // typed name (real editable content — see the `content` option above) on
+  // an underlined line, then a fixed "Name and Signature" caption —
+  // matching a standard printed signature block (Word's Insert > Signature
+  // Line renders the same three-part layout).
   renderHTML({ HTMLAttributes, node }) {
-    const { width, height, src, name } = node.attrs;
+    const { width, height, src, imageX, imageY } = node.attrs;
+    const objectPosition = `calc(50% + ${imageX || 0}px) calc(50% + ${imageY || 0}px)`;
     return [
       "div",
       {
@@ -103,13 +132,15 @@ export const ESignature = Node.create<ESignatureOptions>({
       },
       [
         "div",
-        { style: `width: 100%; height: ${height}px;` },
-        ...(src ? [["img", { src, alt: "Signature", style: "width: 100%; height: 100%; object-fit: contain;" }]] : []),
+        { style: `width: 100%; height: ${height}px; overflow: hidden;` },
+        ...(src
+          ? [["img", { src, alt: "Signature", style: `width: 100%; height: 100%; object-fit: contain; object-position: ${objectPosition};` }]]
+          : []),
       ],
       [
         "div",
-        { style: "border-bottom: 1px solid #6b7280; text-align: center; padding-bottom: 2px; min-height: 1.2em;" },
-        name || "",
+        { "data-e-signature-name": "", style: "border-bottom: 1px solid #6b7280; text-align: center; padding-bottom: 2px; min-height: 1.2em;" },
+        0,
       ],
       ["div", { style: "text-align: center; font-size: 10px; color: #6b7280; margin-top: 2px;" }, "Name and Signature"],
     ];

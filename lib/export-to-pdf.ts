@@ -1465,7 +1465,11 @@ async function eSignatureNodeToContent(
     image: `data:image/${resolved.type};base64,${base64}`,
     width: Math.round(width * 0.75),
     height: Math.round(height * 0.75),
-    alignment: imageAlignmentFromAttrs(node.attrs),
+    // The in-frame image drag (imageX/imageY, see ESignatureViewer.tsx) has
+    // no equivalent in a static export, so rather than exporting it at some
+    // arbitrary/default position, it's always centered — matching the
+    // name/caption below it, which are always centered too.
+    alignment: "center",
   };
 }
 
@@ -2207,9 +2211,16 @@ async function convertBlockNode(
       const signature = await eSignatureNodeToContent(node, state);
       if (!signature) return [];
 
-      const alignment = imageAlignmentFromAttrs(node.attrs);
-      const name = typeof node.attrs?.name === "string" && node.attrs.name.trim() ? node.attrs.name : " ";
+      // The in-frame image drag (imageX/imageY, see ESignatureViewer.tsx)
+      // has no equivalent in a static export, so rather than exporting the
+      // block at some arbitrary/default position, it's always centered —
+      // matching the name/caption text, which are always centered too.
+      const alignment = "center" as const;
       const widthPt = Math.round((Math.round(node.attrs?.width) || 220) * 0.75);
+      // The signer's typed name is real inline content (with marks like
+      // bold), not a plain attribute — see lib/extensions/esignature.ts —
+      // so it's converted the same way any other paragraph's content is.
+      const nameChildren = await convertInline(node.content, state);
 
       // A full signature block, matching the editor's layout (see
       // lib/extensions/esignature.ts): the image, then the signer's typed
@@ -2223,7 +2234,7 @@ async function convertBlockNode(
       const nameAndCaption: Content = {
         alignment,
         stack: [
-          { text: name, alignment: "center", fontSize: 11, margin: [0, 2, 0, 2] } as ContentText,
+          { text: nameChildren.length ? nameChildren : " ", alignment: "center", fontSize: 11, margin: [0, 2, 0, 2] } as ContentText,
           underline,
           { text: "Name and Signature", alignment: "center", fontSize: 8, color: "#6b7280", margin: [0, 2, 0, 0] } as ContentText,
         ],

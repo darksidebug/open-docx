@@ -1104,8 +1104,16 @@ async function convertBlockNode(
       const run = await eSignatureNodeToRun(node, state);
       if (!run) return [];
 
-      const alignment = imageAlignmentFromAttrs(node.attrs);
-      const name = typeof node.attrs?.name === "string" && node.attrs.name.trim() ? node.attrs.name : " ";
+      // The in-frame image drag (imageX/imageY, see ESignatureViewer.tsx)
+      // has no equivalent in a static export, so rather than exporting it
+      // at some arbitrary/default position, the whole block is centered —
+      // matching the name/caption, which are always centered regardless of
+      // the block's own left/right/center alignment.
+      const alignment = AlignmentType.CENTER;
+      // The signer's typed name is real inline content (with marks like
+      // bold), not a plain attribute — see lib/extensions/esignature.ts —
+      // so it's converted the same way any other paragraph's content is.
+      const nameChildren = await convertInline(node.content, state);
 
       // A full signature block, matching the editor's layout (see
       // lib/extensions/esignature.ts): the image, then the signer's typed
@@ -1117,7 +1125,7 @@ async function convertBlockNode(
         new Paragraph({
           alignment,
           border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "6B7280" } },
-          children: [new TextRun({ text: name })],
+          children: nameChildren.length ? nameChildren : [new TextRun(" ")],
         }),
         new Paragraph({
           alignment,
