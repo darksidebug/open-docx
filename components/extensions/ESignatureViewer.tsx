@@ -2,8 +2,13 @@ import React, { useCallback, useRef, useState } from "react";
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { AlignLeft, AlignCenter, AlignRight, MoveDiagonal, PenLine, Trash2, Upload } from "lucide-react";
 import SignaturePad from "./SignaturePad";
+import FontFamily from "../ui/toolbars/FontFamily";
+import FontSize from "../ui/toolbars/FontSize";
+import { useEditorStore } from "@/store/useEditorStore";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
+  const { editor, fontSizes } = useEditorStore();
   const { node, updateAttributes, deleteNode, selected } = props;
   const [isResizing, setIsResizing] = useState(false);
   const [isMovingImage, setIsMovingImage] = useState(false);
@@ -16,6 +21,10 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
   const imageY = node.attrs.imageY || 0;
   const alignment = node.attrs.alignment || "left";
   const isActive = selected || isResizing || isMovingImage;
+
+  const handleSetFontSize = useDebounce((size: string) => {
+    editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
+  }, 300);
 
   // Nudges the image within its own fixed-size box (e.g. to use the slack
   // space `object-fit: contain` leaves when the image's aspect ratio doesn't
@@ -137,14 +146,14 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
       >
         {/* Hover/selected toolbar */}
         <div
-          className={`absolute -top-9 left-0 flex items-center gap-x-1 rounded-md border border-gray-200 bg-white p-1 shadow-lg transition-opacity ${
+          className={`absolute -top-7 left-0 flex items-center gap-x-1 rounded-md border border-gray-200 bg-white p-1 shadow-lg transition-opacity ${
             isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "left" })}
-            className={`rounded p-1 hover:bg-gray-100 ${alignment === "left" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            className={`rounded p-1.25 hover:bg-gray-100 ${alignment === "left" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
             title="Align Left"
           >
             <AlignLeft className="size-3.5" />
@@ -152,7 +161,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "center" })}
-            className={`rounded p-1 hover:bg-gray-100 ${alignment === "center" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            className={`rounded p-1.25 hover:bg-gray-100 ${alignment === "center" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
             title="Align Center"
           >
             <AlignCenter className="size-3.5" />
@@ -160,7 +169,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "right" })}
-            className={`rounded p-1 hover:bg-gray-100 ${alignment === "right" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            className={`rounded p-1.25 hover:bg-gray-100 ${alignment === "right" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
             title="Align Right"
           >
             <AlignRight className="size-3.5" />
@@ -169,7 +178,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => setShowPad(true)}
-            className="rounded p-1 text-gray-600 hover:bg-gray-100"
+            className="rounded p-1.25 text-gray-600 hover:bg-gray-100"
             title={src ? "Re-draw" : "Draw"}
           >
             <PenLine className="size-3.5" />
@@ -177,7 +186,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded p-1 text-gray-600 hover:bg-gray-100"
+            className="rounded p-1.25 text-gray-600 hover:bg-gray-100"
             title={src ? "Replace with an uploaded image" : "Upload an image"}
           >
             <Upload className="size-3.5" />
@@ -185,7 +194,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={deleteNode}
-            className="rounded p-1 text-red-500 hover:bg-red-50"
+            className="rounded p-1.25 text-red-500 hover:bg-red-50"
             title="Delete"
           >
             <Trash2 className="size-3.5" />
@@ -202,16 +211,18 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
         />
 
         {/* Signature image area */}
-        <div style={{ height }} className="relative overflow-hidden">
+        <div style={{ height }} className='relative z-2 overflow-hidden'>
           {src ? (
-            <img
-              src={src}
-              alt="Signature"
-              className="size-full object-contain cursor-move"
-              style={{ objectPosition: `calc(50% + ${imageX}px) calc(50% + ${imageY}px)` }}
-              draggable={false}
-              onPointerDown={handleImageDragStart}
-            />
+            // <div >
+              <img
+                src={src}
+                alt="Signature"
+                className="size-full object-contain cursor-move"
+                style={{ objectPosition: `calc(50% + ${imageX}px) calc(50% + ${imageY}px)` }}
+                draggable={false}
+                onPointerDown={handleImageDragStart}
+              />
+            // </div>
           ) : (
             <div className="flex size-full flex-col items-center justify-center gap-y-1 text-gray-400">
               <div className="flex items-center gap-x-3">
@@ -245,7 +256,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           {/* Resize handle (resizes the image area only) */}
           <div
             onPointerDown={handleResizeStart}
-            className={`absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 shadow transition-opacity ${
+            className={`absolute bottom-0.5 right-0.5 rounded bg-white/90 p-0.5 shadow transition-opacity cursor-nw-resize ${
               isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             }`}
             title="Drag to resize"
@@ -257,7 +268,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
         {/* Signer's typed name — real editable ProseMirror content (not a
             plain attribute), so marks like bold apply to it normally via
             the editor's own toolbar/shortcuts. */}
-        <div className="relative border-b border-gray-500 pb-0.5">
+        <div className="relative z-1 border-b border-gray-500 pb-0.5">
           {isNameEmpty && (
             <span className="pointer-events-none absolute inset-0 text-center text-[13px] text-gray-400">
               Enter your name
@@ -270,7 +281,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
             // needs to stay non-editable for the image/buttons/caption
             // around it), so nothing could be typed here at all.
             contentEditable
-            className="min-h-[1.2em] w-full text-center text-[13px] outline-none"
+            className="min-h-[1.2em] w-full text-center text-[13px] outline-none bg-transparent"
           />
         </div>
 

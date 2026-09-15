@@ -32,15 +32,16 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
   const [error, setError] = useState<string | null>(null);
   const { documentName } = useEditorStore();
 
+  console.log('object-document', documents)
+
   const sortedDocuments = useMemo(() => {
-    return [];
-    // const copy = [...documents];
-    // if (sortAz) {
-    //   copy.sort((a, b) => a.title.localeCompare(b.title));
-    // } else {
-    //   copy.sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime());
-    // }
-    // return copy;
+    const copy = [...documents];
+    if (sortAz) {
+      copy.sort((a, b) => a.document_name.localeCompare(b.document_name));
+    } else {
+      copy.sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime());
+    }
+    return copy;
   }, [documents, sortAz]);
 
   async function handleCreate(option: FormOption) {
@@ -78,7 +79,6 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
             <button
               type="button"
               onClick={() => {
-                console.log('object--')
                 handleCreate({
                   service_id: 1,
                   document_name: documentName,
@@ -86,9 +86,9 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
                 })
               }}
               disabled={creating}
-              className="w-36 shrink-0 rounded-md border border-gray-300 bg-white text-left hover:shadow-md disabled:opacity-50 overflow-hidden"
+              className="w-36 shrink-0 min-w-48 rounded-md border border-gray-300 bg-white text-left hover:shadow-md disabled:opacity-50 overflow-hidden"
             >
-              <div className="flex aspect-3/4 items-center justify-center bg-white">
+              <div className="flex aspect-3/3.5 items-center justify-center bg-white">
                 <Plus className="size-10 text-blue-500" />
               </div>
               <div className="border-t border-gray-200 px-2 py-1.5 text-xs text-gray-700 font-medium">Blank template</div>
@@ -173,31 +173,31 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
             <div
               className={
                 view === 'grid'
-                  ? 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+                  ? 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
                   : 'flex flex-col divide-y divide-gray-100 rounded border border-gray-200 bg-white'
               }
             >
-              {/* {sortedDocuments.map((doc) =>
+              {sortedDocuments.map((doc) =>
                 view === 'grid' ? (
                   <button
                     key={doc.id}
                     type="button"
-                    onClick={() => router.push(`/docs/${doc.id}`)}
-                    className="rounded border border-gray-200 bg-white text-left hover:shadow-md"
+                    onClick={() => router.push(`/docs/${doc.uuid}`)}
+                    className="rounded-lg border border-gray-300 bg-white text-left hover:shadow-md overflow-hidden"
                   >
-                    <div className="flex aspect-3/4 items-center justify-center overflow-hidden rounded-t bg-gray-50">
+                    <div className="flex aspect-3/3.5 items-center justify-center overflow-hidden rounded-t bg-white">
                       {doc.thumbnail_url ? (
                         // eslint-disable-next-line @next/next/no-img-element -- external, unknown-host Laravel media; next/image requires a known remotePattern
-                        <img src={doc.thumbnail_url} alt={doc.title} className="size-full object-cover" />
+                        <img src={doc.thumbnail_url} alt={doc.document_name || 'Untitled document'} className="size-full object-cover" />
                       ) : (
                         <FileText className="size-8 text-gray-300" />
                       )}
                     </div>
                     <div className="flex items-start justify-between gap-x-1 border-t border-gray-200 px-2 py-1.5">
                       <div className="min-w-0">
-                        <div className="truncate text-xs text-gray-800">{doc.title}</div>
+                        <div className="truncate text-xs text-gray-800 font-medium">{doc.document_name || 'Untitled document'}</div>
                         <div className="truncate text-[11px] text-gray-400">
-                          Opened {formatRelativeTime(doc.opened_at ?? doc.updated_at)}
+                          Last opened {formatRelativeTime(doc.opened_at ?? doc.updated_at)}
                         </div>
                       </div>
                       <MoreVertical className="size-3.5 shrink-0 text-gray-400" />
@@ -207,17 +207,17 @@ export default function DocsHome({ documents, templates, loadError }: DocsHomePr
                   <button
                     key={doc.id}
                     type="button"
-                    onClick={() => router.push(`/docs/${doc.id}`)}
+                    onClick={() => router.push(`/docs/${doc.uuid}`)}
                     className="flex items-center gap-x-3 px-3 py-2 text-left hover:bg-gray-50"
                   >
                     <FileText className="size-4 shrink-0 text-gray-400" />
-                    <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{doc.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-800 font-medium">{doc.document_name || 'Untitled document'}</span>
                     <span className="shrink-0 text-xs text-gray-400">
-                      Opened {formatRelativeTime(doc.opened_at ?? doc.updated_at)}
+                      Last opened {formatRelativeTime(doc.opened_at ?? doc.updated_at)}
                     </span>
                   </button>
                 ),
-              )} */}
+              )}
             </div>
           )}
         </div>

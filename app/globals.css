@@ -243,12 +243,6 @@ body {
   table {
     border-collapse: collapse;
     margin: 0;
-    /* Not `hidden`: the collaboration caret's floating name label is
-     * rendered as a decoration inside a <td>, positioned above its line via
-     * a negative `top` offset (see .collaboration-carets__label below) —
-     * `overflow: hidden` directly on the table clips it whenever that
-     * pushes it above the table's own box, independent of .tableWrapper's
-     * own overflow. */
     overflow: visible;
     table-layout: fixed;
     width: 100%;
@@ -339,14 +333,6 @@ body {
 
   .tableWrapper {
     margin: 0.5rem 0;
-    overflow-x: auto;
-    /* Explicit (not just the default): without this, overflow-x auto with no
-     * overflow-y set makes the browser compute overflow-y as auto too (per
-     * the CSS Overflow spec), clipping anything that pokes above/below the
-     * wrapper — including the collaboration caret's floating name label,
-     * which is deliberately positioned above its line via a negative `top`
-     * offset (see .collaboration-carets__label below). */
-    overflow-y: visible;
   }
 
   pre,
@@ -619,35 +605,3 @@ body {
 .color-area {
   @apply rounded-lg;
 }
-
-/* .color-picker__popover {
-
-  &.position-left {
-    @apply rounded-md border border-gray-200;
-    left: 575px !important;
-    top: 420px !important;
-
-    .color-area,
-    .cancel-btn,
-    .select-btn {
-      @apply rounded-md;
-    }
-
-    .cancel-btn,
-    .select-btn {
-      @apply rounded;
-    }
-  }
-
-  &.font-position-left {
-    @apply rounded-md border border-gray-200;
-    left: 605px !important;
-    top: 420px !important;
-
-    .color-area,
-    .cancel-btn,
-    .select-btn {
-      @apply rounded-md;
-    }
-  }
-} */

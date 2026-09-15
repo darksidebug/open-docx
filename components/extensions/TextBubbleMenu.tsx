@@ -48,110 +48,12 @@ export const TextBubbleMenu = () => {
     applyCaseChange,
     changeFontSizeStep
   } = useEditorStore();
-  const [isScrolling, setIsScrolling] = useState(false);
   const [isOpened, setIsOpened] = useState(false);
   const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
-  // Keeps the bubble menu from rendering underneath the app's own sticky
-  // toolbar (#docs-toolbar in DocsWorkspace.tsx). Measured live (instead of a
-  // hardcoded height) since the toolbar's height varies with whether the
-  // ruler/toolbar rows are enabled.
-  const [toolbarHeight, setToolbarHeight] = useState(0);
-
-  useEffect(() => {
-    const toolbarEl = document.getElementById('docs-toolbar');
-    if (!toolbarEl) return;
-
-    // ResizeObserver fires its callback once immediately upon observe(),
-    // with the element's current size, so no separate initial read is needed.
-    const observer = new ResizeObserver(([entry]) => {
-      setToolbarHeight(entry.contentRect.height);
-    });
-    observer.observe(toolbarEl);
-
-    return () => observer.disconnect();
-  }, []);
 
   const handleSetFontSize = useDebounce((size: string) => {
     editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
   }, 300);
-
-  useEffect(() => {
-    let scrollTimeout: NodeJS.Timeout;
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-      clearTimeout(scrollTimeout);
-
-      // Re-enable the menu shortly after scrolling stops (150ms)
-      scrollTimeout = setTimeout(() => {
-        setIsScrolling(false);
-      }, 150);
-    };
-
-    // `capture: true` is required here: scroll events don't bubble, so a
-    // listener on `window` in the (default) bubble phase never sees scrolling
-    // inside a nested scrollable element (e.g. a wide table's own
-    // `.tableWrapper { overflow-x: auto }`, see app/globals.css) — only the
-    // capture phase reaches it.
-    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll, { capture: true });
-      clearTimeout(scrollTimeout);
-    };
-  }, []);
-
-  // Visibility (scrolling, table/image selections) is handled via `shouldShow`
-  // below instead of an early `return null` here. `<BubbleMenu>` registers a
-  // ProseMirror plugin on mount and unregisters it on unmount (see
-  // @tiptap/react/src/menus/BubbleMenu.tsx) — conditionally unmounting it on
-  // every scroll/selection change was tearing that plugin down and back up
-  // constantly, which could race with a collaborative Yjs update rebuilding
-  // node views and throw a React "flushSync called from inside a lifecycle
-  // method" error. `shouldShow` only toggles CSS visibility, keeping the
-  // plugin registered the whole time the editor exists.
-  const shouldShow: Exclude<BubbleMenuPluginProps['shouldShow'], null | undefined> = useCallback(
-    ({ element, view, state, from, to }) => {
-      if (isScrolling || !editor) return false;
-      if (editor.isActive('table') || editor.isActive('customImage')) return false;
-
-      const { doc, selection } = state;
-      const { empty } = selection;
-      const isEmptyTextBlock = !doc.textBetween(from, to).length;
-      const isChildOfMenu = element.contains(document.activeElement);
-      const hasEditorFocus = view.hasFocus() || isChildOfMenu;
-
-      if (!hasEditorFocus || empty || isEmptyTextBlock || !editor.isEditable) {
-        return false;
-      }
-
-      return true;
-    },
-    [editor, isScrolling],
-  );
-
-  // Memoized: a fresh object here every render would make <BubbleMenu>'s own
-  // "options changed" effect dispatch a ProseMirror transaction on every
-  // render, which triggers onTransaction -> setEditor -> re-render -> a new
-  // options object -> dispatch again, forever ("Maximum update depth exceeded").
-  const bubbleMenuOptions = useMemo(() => {
-    // `flip` (which decides above vs. below the selection) and `shift`
-    // (which nudges the chosen placement to stay in view) each read their
-    // OWN `padding` — giving it only to `shift` left `flip` unaware the
-    // toolbar occupies that space, so it still picked "above" (enough room
-    // by the raw viewport edge) and `shift` just pushed that wrong
-    // placement down, wedging the menu between the toolbar and the ruler
-    // instead of properly flipping below the selection.
-    const padding = { top: toolbarHeight + 8, bottom: 8, left: 8, right: 8 };
-    return {
-      flip: { padding },
-      shift: { padding },
-    };
-  }, [toolbarHeight]);
-
-  if (!editor) {
-    return null;
-  }
 
   const getCurrentValue = () => {
     if (!editor) return 0;
@@ -166,409 +68,396 @@ export const TextBubbleMenu = () => {
   };
 
   return (
-    <BubbleMenu
-      editor={editor}
-      className='z-20'
-      shouldShow={shouldShow}
-      options={bubbleMenuOptions}
+    <div
+      className={cn(
+        'flex flex-col gap-y-0.75 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200',
+      )}
     >
-      <div
-        className={cn(
-          'flex flex-col gap-y-0.75 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200',
-          // The plugin only re-evaluates `shouldShow` (and therefore its own
-          // show/hide) on ProseMirror transactions/focus/blur — plain window
-          // scrolling only repositions it, it doesn't hide it. This covers
-          // the scroll case ourselves, purely visually, without unmounting
-          // <BubbleMenu> (which would tear down and re-register its plugin).
-          isScrolling && 'invisible pointer-events-none',
-        )}
-      >
-        <div className='flex items-center gap-x-1'>
-          <FontFamily />
-          <FontSize
-            value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '13'}
-            onChange={handleSetFontSize}
-            items={fontSizes}
-            className='w-12'
-            title='Font Size'
-          />
-          <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mr-0.5 ml-1" />
-          <Dropdown
-            value={getCurrentValue()}
-            onChange={(item: Record<string, any>) => {
-              const level = parseInt(item.value, 10);
-              if (level === 0) {
-                editor?.chain()?.focus()?.setParagraph()?.run();
-              } else {
-                editor?.chain()?.focus()?.unsetAllMarks()?.run();
-                editor?.chain()?.focus()
-                  ?.toggleHeading({ level: level as any })
-                  ?.run();
-              }
-            }}
-            items={typographies}
-            className='w-25.5'
-            title="Styles / Headings"
-          />
-          <button
-            type="button"
-            onClick={() => changeFontSizeStep(1)}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
-            title="Increase Font Size"
-          >
-            <AArrowUp className="size-3.75" />
-          </button>
-          <button
-            type="button"
-            onClick={() => changeFontSizeStep(-1)}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
-            title="Decrease Font Size"
-          >
-            <AArrowDown className="size-3.75" />
-          </button>
+      <div className='flex items-center gap-x-1'>
+        <FontFamily />
+        <FontSize
+          value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '13'}
+          onChange={handleSetFontSize}
+          items={fontSizes}
+          className='w-12'
+          title='Font Size'
+        />
+        <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mr-0.5 ml-1" />
+        <Dropdown
+          value={getCurrentValue()}
+          onChange={(item: Record<string, any>) => {
+            const level = parseInt(item.value, 10);
+            if (level === 0) {
+              editor?.chain()?.focus()?.setParagraph()?.run();
+            } else {
+              editor?.chain()?.focus()?.unsetAllMarks()?.run();
+              editor?.chain()?.focus()
+                ?.toggleHeading({ level: level as any })
+                ?.run();
+            }
+          }}
+          items={typographies}
+          className='w-25.5'
+          title="Styles / Headings"
+        />
+        <button
+          type="button"
+          onClick={() => changeFontSizeStep(1)}
+          className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
+          title="Increase Font Size"
+        >
+          <AArrowUp className="size-3.75" />
+        </button>
+        <button
+          type="button"
+          onClick={() => changeFontSizeStep(-1)}
+          className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer"
+          title="Decrease Font Size"
+        >
+          <AArrowDown className="size-3.75" />
+        </button>
 
-          <div className="relative group font-medium">
-            <button type="button" className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Change Case">
-              <CaseSensitive className="size-3.75" />
+        <div className="relative group font-medium">
+          <button type="button" className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800" title="Change Case">
+            <CaseSensitive className="size-3.75" />
+          </button>
+          <div className="absolute left-0 top-full text-[13px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 min-w-32.5 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => applyCaseChange('sentence')}
+              className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+            >
+              Sentence case
             </button>
-            <div className="absolute left-0 top-full text-[13px] hidden group-hover:flex flex-col bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 min-w-32.5 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => applyCaseChange('sentence')}
-                className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
-              >
-                Sentence case
-              </button>
-              <button
-                type="button"
-                onClick={() => applyCaseChange('lowercase')}
-                className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
-              >
-                lowercase
-              </button>
-              <button
-                type="button"
-                onClick={() => applyCaseChange('uppercase')}
-                className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
-              >
-                UPPERCASE
-              </button>
-              <button
-                type="button"
-                onClick={() => applyCaseChange('capitalize')}
-                className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
-              >
-                Capitalize Words
-              </button>
-              <button
-                type="button"
-                onClick={() => applyCaseChange('toggle')}
-                className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
-              >
-                tOGGLE cASE
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => applyCaseChange('lowercase')}
+              className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+            >
+              lowercase
+            </button>
+            <button
+              type="button"
+              onClick={() => applyCaseChange('uppercase')}
+              className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+            >
+              UPPERCASE
+            </button>
+            <button
+              type="button"
+              onClick={() => applyCaseChange('capitalize')}
+              className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+            >
+              Capitalize Words
+            </button>
+            <button
+              type="button"
+              onClick={() => applyCaseChange('toggle')}
+              className="px-3 py-1.25 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
+            >
+              tOGGLE cASE
+            </button>
           </div>
         </div>
-        <div className='flex items-center gap-x-1'>
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
-              editor.isActive('bold') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
-            }`}
-            title="Bold"
-          >
-            <Bold className="size-3.5" />
-          </button>
+      </div>
+      <div className='flex items-center gap-x-1'>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
+            editor.isActive('bold') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
+          }`}
+          title="Bold"
+        >
+          <Bold className="size-3.5" />
+        </button>
 
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
-              editor.isActive('italic') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
-            }`}
-            title="Italic"
-          >
-            <Italic className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
-              editor.isActive('underline') ? 'text-blue-500 bg-zinc-200 dark:bg-zinc-700' : ''
-            }`}
-            title="Underline"
-          >
-            <Underline className="size-3.5" />
-          </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
+            editor.isActive('italic') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
+          }`}
+          title="Italic"
+        >
+          <Italic className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
+            editor.isActive('underline') ? 'text-blue-500 bg-zinc-200 dark:bg-zinc-700' : ''
+          }`}
+          title="Underline"
+        >
+          <Underline className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
+            editor.isActive('strike') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
+          }`}
+          title="Strikethrough"
+        >
+          <Strikethrough className="size-3.5" />
+        </button>
+        <div className='relative top-0.5 group font-medium'>
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer ${
-              editor.isActive('strike') ? 'text-blue-600 bg-zinc-200 dark:bg-zinc-700' : ''
-            }`}
-            title="Strikethrough"
+            className='px-1 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-blue-500 bg-zinc-200 dark:bg-zinc-700'
+            title="Text Align"
           >
-            <Strikethrough className="size-3.5" />
+            {(() => {
+              if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'center') {
+                return <AlignCenter className="size-3.75" />;
+              }
+
+              if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'right') {
+                return <AlignRight className="size-3.75" />;
+              }
+
+              if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'justify') {
+                return <AlignJustify className="size-3.75" />;
+              }
+
+              return <AlignLeft className="size-3.75" />;
+            })()}
           </button>
-          <div className='relative top-0.5 group font-medium'>
+          <div className="absolute -left-2 top-6 min-w-37.5 text-[12px] hidden group-hover:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 overflow-hidden">
+            <button
+              onClick={() => editor?.chain()?.focus()?.setTextAlign('left')?.run()}
+              className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+            >
+              Align Left
+            </button>
+            <button
+              onClick={() => editor?.chain()?.focus()?.setTextAlign('center')?.run()}
+              className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+            >
+              Align Center
+            </button>
+            <button
+              onClick={() => editor?.chain()?.focus()?.setTextAlign('right')?.run()}
+              className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+            >
+              Align Right
+            </button>
+            <button
+              onClick={() => editor?.chain()?.focus()?.setTextAlign('justify')?.run()}
+              className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+            >
+              Justify Text
+            </button>
+          </div>
+        </div>
+        <div className='relative group font-medium'>
+          <button
+            className='relative w-full flex items-center gap-x-2 text-left px-1.25 py-1 rounded hover:bg-zinc-200'
+          >
+            <ListChevronsUpDownIcon className='size-3.75' />
+          </button>
+          <div className="absolute -left-2 top-6 min-w-37.5 text-[12px] hidden group-hover:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 overflow-hidden">
+            {['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((spacing) => (
+              <button
+                key={spacing}
+                type="button"
+                onClick={() => editor?.chain()?.focus()?.setLineHeight(spacing)?.run()}
+                className={cn(
+                  'px-3 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer'
+                )}
+              >
+                {spacing}
+              </button>
+            ))}
+            <div className="h-px border-t border-zinc-100 dark:border-zinc-700" />
             <button
               type="button"
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              className='px-1 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-blue-500 bg-zinc-200 dark:bg-zinc-700'
-              title="Text Align"
+              onClick={() => editor?.chain()?.focus()?.unsetLineHeight()?.run()}
+              className="px-3 py-1.25 text-left hover:bg-zinc-100 rounded dark:hover:bg-zinc-700 cursor-pointer"
             >
-              {(() => {
-                if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'center') {
-                  return <AlignCenter className="size-3.75" />;
-                }
-
-                if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'right') {
-                  return <AlignRight className="size-3.75" />;
-                }
-
-                if ((editor.getAttributes('paragraph').textAlign || editor.getAttributes('heading').textAlign) === 'justify') {
-                  return <AlignJustify className="size-3.75" />;
-                }
-
-                return <AlignLeft className="size-3.75" />;
-              })()}
+              Reset text spacing
             </button>
-            <div className="absolute -left-2 top-6 min-w-37.5 text-[12px] hidden group-hover:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 overflow-hidden">
-              <button
-                onClick={() => editor?.chain()?.focus()?.setTextAlign('left')?.run()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                Align Left
-              </button>
-              <button
-                onClick={() => editor?.chain()?.focus()?.setTextAlign('center')?.run()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                Align Center
-              </button>
-              <button
-                onClick={() => editor?.chain()?.focus()?.setTextAlign('right')?.run()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                Align Right
-              </button>
-              <button
-                onClick={() => editor?.chain()?.focus()?.setTextAlign('justify')?.run()}
-                className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
-              >
-                Justify Text
-              </button>
-            </div>
           </div>
-          <div className='relative group font-medium'>
-            <button
-              className='relative w-full flex items-center gap-x-2 text-left px-1.25 py-1 rounded hover:bg-zinc-200'
-            >
-              <ListChevronsUpDownIcon className='size-3.75' />
-            </button>
-            <div className="absolute -left-2 top-6 min-w-37.5 text-[12px] hidden group-hover:flex flex-col p-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg z-20 overflow-hidden">
-              {['1.0', '1.15', '1.5', '2.0', '2.5', '3.0'].map((spacing) => (
-                <button
-                  key={spacing}
-                  type="button"
-                  onClick={() => editor?.chain()?.focus()?.setLineHeight(spacing)?.run()}
-                  className={cn(
-                    'px-3 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer'
-                  )}
-                >
-                  {spacing}
-                </button>
-              ))}
-              <div className="h-px border-t border-zinc-100 dark:border-zinc-700" />
-              <button
-                type="button"
-                onClick={() => editor?.chain()?.focus()?.unsetLineHeight()?.run()}
-                className="px-3 py-1.25 text-left hover:bg-zinc-100 rounded dark:hover:bg-zinc-700 cursor-pointer"
-              >
-                Reset text spacing
-              </button>
-            </div>
-          </div>
-          <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.toggleBulletList()?.run()}
-            className={cn(
-              'p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer',
-              editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''
-            )}
-            title="Bullet List"
-          >
-            <List className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.toggleOrderedList().run()}
-            className={cn(
-              'p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer',
-              editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : '',
-            )}
-            title="Numbered List"
-          >
-            <ListOrdered className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.toggleTaskList().run()}
-            className={cn(
-              'p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer',
-              editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''
-            )}
-            title="Task List"
-          >
-            <ListTodo className="size-3.5" />
-          </button>
-          <button
-            disabled={!(editor.isActive('bulletList') || editor.isActive('orderedList'))}
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.sinkListItem('listItem')?.run()}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:hover:bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
-            title="List Item Increase Indent"
-          >
-            <IndentIncrease className="size-3.5" />
-          </button>
-          <button
-            disabled={!(editor.isActive('bulletList') || editor.isActive('orderedList'))}
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.liftListItem('listItem')?.run()}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:hover:bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
-            title="List Item Decrease Indent"
-          >
-            <IndentDecrease className="size-3.5" />
-          </button>
-          <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
-          <div className='relative group'>
-            <button
-              className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
-              title="Highlight Color"
-            >
-              <Highlighter className="size-3.5" />
-            </button>
-            <div
-              className={cn(
-                'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
-                isOpened ? 'block' : ''
-              )}
-            >
-              <div className='flex flex-col gap-y-0.75 p-1'>
-                {colorSet.map((colors, index) => (
-                  <div
-                    key={index}
-                    className='flex items-center gap-x-0.75'
-                  >
-                    {colors.map(color => (
-                      <button
-                        key={color}
-                        className='size-5 rounded-full border border-gray-300 cursor-pointer'
-                        style={{
-                          backgroundColor: `${color}`
-                        }}
-                        onClick={() => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
-                      />
-                    )).reverse()}
-                  </div>
-                ))}
-              </div>
-              <div className='relative mt-3 pt-1 border-t border-gray-200'>
-                <button
-                  className={cn(
-                    'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
-                    isOpened ? 'bg-gray-100' : ''
-                  )}
-                  onClick={() => setIsOpened(state => !state)}
-                >
-                  Custom Color
-                </button>
-                {isOpened && (
-                  <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
-                    <ColorUiPicker
-                      onClick={() => {
-                        setIsOpened(state => !state)
-                      }}
-                      colorAreaClass='h-32'
-                      onSelect={(color: string) => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
-                      className='bg-white'
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className='relative top-px group'>
-            <button
-              className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
-              title="Font Color"
-            >
-              <Baseline className="size-3.5" />
-            </button>
-            <div
-              className={cn(
-                'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
-                isFontSwatchOpened ? 'block' : ''
-              )}
-            >
-              <div className='flex flex-col gap-y-0.75 p-1'>
-                {colorSet.map((colors, index) => (
-                  <div
-                    key={index}
-                    className='flex items-center gap-x-0.75'
-                  >
-                    {colors.map(color => (
-                      <button
-                        key={color}
-                        className='size-5 rounded-full border border-gray-300 cursor-pointer'
-                        style={{
-                          backgroundColor: `${color}`
-                        }}
-                        onClick={() => editor?.chain()?.focus()?.setColor(color)?.run()}
-                      />
-                    )).reverse()}
-                  </div>
-                ))}
-              </div>
-              <div className='relative mt-3 pt-1 border-t border-gray-200'>
-                <button
-                  className={cn(
-                    'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
-                    isFontSwatchOpened ? 'bg-gray-100' : ''
-                  )}
-                  onClick={() => setIsFontSwatchOpened(state => !state)}
-                >
-                  Custom Color
-                </button>
-                {isFontSwatchOpened && (
-                  <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
-                    <ColorUiPicker
-                      onClick={() => {
-                        setIsFontSwatchOpened(state => !state)
-                      }}
-                      colorAreaClass='h-32'
-                      onSelect={(color) => editor?.chain()?.focus()?.setColor(color)?.run()}
-                      className='bg-white'
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
-            className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:cursor-not-allowed"
-            title="Clear Formatting"
-          >
-            <Eraser className="size-3.5" />
-          </button>
         </div>
+        <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
+        <button
+          type="button"
+          onClick={() => editor?.chain()?.focus()?.toggleBulletList()?.run()}
+          className={cn(
+            'p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer',
+            editor.isActive('bulletList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''
+          )}
+          title="Bullet List"
+        >
+          <List className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor?.chain()?.focus()?.toggleOrderedList().run()}
+          className={cn(
+            'p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer',
+            editor.isActive('orderedList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : '',
+          )}
+          title="Numbered List"
+        >
+          <ListOrdered className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => editor?.chain()?.focus()?.toggleTaskList().run()}
+          className={cn(
+            'p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer',
+            editor.isActive('taskList') ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600 dark:text-blue-400' : ''
+          )}
+          title="Task List"
+        >
+          <ListTodo className="size-3.5" />
+        </button>
+        <button
+          disabled={!(editor.isActive('bulletList') || editor.isActive('orderedList'))}
+          type="button"
+          onClick={() => editor?.chain()?.focus()?.sinkListItem('listItem')?.run()}
+          className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:hover:bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+          title="List Item Increase Indent"
+        >
+          <IndentIncrease className="size-3.5" />
+        </button>
+        <button
+          disabled={!(editor.isActive('bulletList') || editor.isActive('orderedList'))}
+          type="button"
+          onClick={() => editor?.chain()?.focus()?.liftListItem('listItem')?.run()}
+          className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:hover:bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+          title="List Item Decrease Indent"
+        >
+          <IndentDecrease className="size-3.5" />
+        </button>
+        <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
+        <div className='relative group'>
+          <button
+            className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            title="Highlight Color"
+          >
+            <Highlighter className="size-3.5" />
+          </button>
+          <div
+            className={cn(
+              'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+              isOpened ? 'block' : ''
+            )}
+          >
+            <div className='flex flex-col gap-y-0.75 p-1'>
+              {colorSet.map((colors, index) => (
+                <div
+                  key={index}
+                  className='flex items-center gap-x-0.75'
+                >
+                  {colors.map(color => (
+                    <button
+                      key={color}
+                      className='size-5 rounded-full border border-gray-300 cursor-pointer'
+                      style={{
+                        backgroundColor: `${color}`
+                      }}
+                      onClick={() => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
+                    />
+                  )).reverse()}
+                </div>
+              ))}
+            </div>
+            <div className='relative mt-3 pt-1 border-t border-gray-200'>
+              <button
+                className={cn(
+                  'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                  isOpened ? 'bg-gray-100' : ''
+                )}
+                onClick={() => setIsOpened(state => !state)}
+              >
+                Custom Color
+              </button>
+              {isOpened && (
+                <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                  <ColorUiPicker
+                    onClick={() => {
+                      setIsOpened(state => !state)
+                    }}
+                    colorAreaClass='h-32'
+                    onSelect={(color: string) => editor?.chain()?.focus()?.toggleHighlight({ color })?.run()}
+                    className='bg-white'
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className='relative top-px group'>
+          <button
+            className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            title="Font Color"
+          >
+            <Baseline className="size-3.5" />
+          </button>
+          <div
+            className={cn(
+              'hidden group-hover:block absolute top-6 z-10 py-2.5 px-3 rounded-md shadow-lg border border-gray-200 bg-white text-[13px] -translate-x-1/2',
+              isFontSwatchOpened ? 'block' : ''
+            )}
+          >
+            <div className='flex flex-col gap-y-0.75 p-1'>
+              {colorSet.map((colors, index) => (
+                <div
+                  key={index}
+                  className='flex items-center gap-x-0.75'
+                >
+                  {colors.map(color => (
+                    <button
+                      key={color}
+                      className='size-5 rounded-full border border-gray-300 cursor-pointer'
+                      style={{
+                        backgroundColor: `${color}`
+                      }}
+                      onClick={() => editor?.chain()?.focus()?.setColor(color)?.run()}
+                    />
+                  )).reverse()}
+                </div>
+              ))}
+            </div>
+            <div className='relative mt-3 pt-1 border-t border-gray-200'>
+              <button
+                className={cn(
+                  'w-full block text-left text-[13px] font-normal px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer',
+                  isFontSwatchOpened ? 'bg-gray-100' : ''
+                )}
+                onClick={() => setIsFontSwatchOpened(state => !state)}
+              >
+                Custom Color
+              </button>
+              {isFontSwatchOpened && (
+                <div className='absolute -left-1.75 -top-52 pb-1 px-2 bg-white w-62'>
+                  <ColorUiPicker
+                    onClick={() => {
+                      setIsFontSwatchOpened(state => !state)
+                    }}
+                    colorAreaClass='h-32'
+                    onSelect={(color) => editor?.chain()?.focus()?.setColor(color)?.run()}
+                    className='bg-white'
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => editor?.chain()?.focus()?.unsetAllMarks()?.clearNodes()?.run()}
+          className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:cursor-not-allowed"
+          title="Clear Formatting"
+        >
+          <Eraser className="size-3.5" />
+        </button>
       </div>
-    </BubbleMenu>
+    </div>
   );
 };
 

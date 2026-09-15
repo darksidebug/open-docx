@@ -23,7 +23,8 @@ export interface DocumentReport {
 
 /** One row in the "Recent documents" list — documents this user is assigned to. */
 export interface DocumentSummary {
-  id: string;
+  id: number;
+  uuid: string;
   document_name: string;
   service_id: number;
   document_content: Record<string, any>[];
@@ -143,7 +144,6 @@ export async function createDocument(
     document_content: Record<string, any>[]
   },
 ): Promise<DocumentSummary> {
-  console.log(DOCUMENTS_LIST_PATH)
   const response = await laravelFetch(DOCUMENTS_LIST_PATH, {
     method: 'POST',
     headers: {

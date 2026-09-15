@@ -195,7 +195,7 @@ const Toolbar2 = () => {
   }
 
   return (
-    <div className='px-4 mt-2 print:hidden'>
+    <div className='px-4 mt-2 print:hidden' id='docs-toolbar'>
       <ToolbarMenu />
       {enableToolbar && (
         <div className="flex items-center justify-between bg-[#f0f4f9] dark:bg-zinc-900 rounded-lg mt-2 border border-[#f0f4f8] dark:border-zinc-800 text-zinc-700 dark:text-zinc-200">

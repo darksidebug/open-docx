@@ -17,7 +17,7 @@ export default async function DocsHomePage() {
 
   if (token) {
     try {
-      [documents, templates] = await Promise.all([listDocuments(token), listTemplates(token)]);
+      [documents] = await Promise.all([listDocuments(token)]);
     } catch {
       loadError = true;
     }

@@ -129,6 +129,7 @@ const server = new Server({
   maxDebounce: SAVE_MAX_DEBOUNCE_MS,
 
   async onAuthenticate({ requestHeaders, documentName }): Promise<AuthContext> {
+    console.log('[collab][debug] raw Cookie headers', requestHeaders.get('cookie'))
     const cookies = parseCookies(requestHeaders.get('cookie'));
     const sessionCookie = cookies[SESSION_COOKIE];
 

@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils'
 import TextBubbleMenu from '@/components/extensions/TextBubbleMenu'
 import ColumnBubbleMenu from '@/components/extensions/ColumnBubbleMenu'
 import type { CollabUser } from '@/lib/auth/user'
+import BubbleMenu from '@tiptap/extension-bubble-menu'
+import BubbleMenuContent from '@/components/extensions/BubbleMenuContent'
 
 interface DocsWorkspaceProps {
   user: CollabUser;
@@ -26,6 +28,17 @@ const DocsWorkspace = ({ user, documentId, documentTitle }: DocsWorkspaceProps) 
   useEffect(() => {
     if (documentTitle) setDocumentName(documentTitle);
   }, [documentTitle, setDocumentName]);
+
+  const isBlockEmpty = () => {
+    if (!editor) return true;
+    const { $from } = editor.state.selection;
+    const parent = $from.parent;
+    
+    if (parent.type.name === "paragraph" || parent.type.name === "heading") {
+      return parent.textContent.trim() === "";
+    }
+    return true;
+  };
 
   return (
     <div ref={containerRef}  className='bg-[#F9FBFD]'>
@@ -45,29 +58,7 @@ const DocsWorkspace = ({ user, documentId, documentTitle }: DocsWorkspaceProps) 
 
       <div className='mb-8 document-workspace'>
 
-        {(() => {
-          console.log(editor?.isActive('table'))
-          if (enableTableBubble && editor?.isActive('table')) {
-            return <TableBubbleMenu />
-          }
-
-          if (
-            editor?.isActive('columnBlock') && !editor?.isActive('table') ||
-            editor?.isActive('columnBlock') && !editor?.isActive('customImage')
-          ) {
-            return <ColumnBubbleMenu />
-          }
-
-          if (
-            enableTextBubble && !editor?.isActive('columnBlock') ||
-            enableTextBubble && !editor?.isActive('customImage') ||
-            enableTextBubble && !editor?.isActive('table')
-          ) {
-            return <TextBubbleMenu />
-          }
-
-          return null;
-        })()}
+        <BubbleMenuContent />
 
         <Editor user={user} documentId={documentId} />
       </div>

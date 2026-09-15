@@ -61,7 +61,6 @@ export const TableBubbleMenu = () => {
     changeFontSizeStep,
     clearCurrentBlockText
   } = useEditorStore();
-  const [isScrolling, setIsScrolling] = useState(false);
   const [isOpened, setIsOpened] = useState(false);
   const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
   const [isPaintSwatchOpened, setIsPaintSwatchOpened] = useState(false);
@@ -70,54 +69,8 @@ export const TableBubbleMenu = () => {
     editor?.chain()?.focus()?.setFontSize(`${size?.toString()?.trim()}px`)?.run()
   }, 300);
 
-  useEffect(() => {
-    let scrollTimeout: NodeJS.Timeout;
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-      clearTimeout(scrollTimeout);
-
-      // Re-enable the menu shortly after scrolling stops (150ms)
-      scrollTimeout = setTimeout(() => {
-        setIsScrolling(false);
-      }, 150);
-    };
-
-    // `capture: true` is required here: scroll events don't bubble, so a
-    // listener on `window` in the (default) bubble phase never sees scrolling
-    // inside a nested scrollable element (e.g. a wide table's own
-    // `.tableWrapper { overflow-x: auto }`, see app/globals.css) — only the
-    // capture phase reaches it.
-    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll, { capture: true });
-      clearTimeout(scrollTimeout);
-    };
-  }, []);
-
-  if (!editor || isScrolling) {
-    return null;
-  }
-
-  if (!editor.isActive('table')) return null;
-
-  const getCurrentValue = () => {
-    if (!editor) return 0;
-
-    // Get the level attribute if a heading is currently selected
-    const headingLevel = editor.getAttributes('heading')?.level;
-    if (headingLevel) {
-      return headingLevel.toString();
-    }
-
-    return 0;
-  };
-
   return (
-    <BubbleMenu
-      editor={editor}
-      // tippyOptions={{ duration: 10 }}
+    <div
       className="-table flex flex-col gap-y-0.75 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 z-20"
     >
       <div className='flex items-center gap-x-1.25'>
@@ -619,7 +572,7 @@ export const TableBubbleMenu = () => {
               <button
                 type="button"
                 onClick={() => {
-                  editor.chain().focus().deleteRow().run()
+                  editor.chain().focus().deleteTable().run()
                 }}
                 className="px-3 py-1.25 text-left hover:bg-red-50 hover:text-red-500 dark:hover:bg-zinc-700 cursor-pointer rounded"
               >
@@ -916,7 +869,7 @@ export const TableBubbleMenu = () => {
           <Eraser className="size-3.5" />
         </button>
       </div>
-    </BubbleMenu>
+    </div>
   );
 };
 

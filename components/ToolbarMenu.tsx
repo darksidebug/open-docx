@@ -656,18 +656,18 @@ const ToolbarMenu = () => {
                 <div className="h-px border-b border-gray-200 w-full" />
                 <button
                   onClick={() => editor?.chain()?.focus()?.setESignature()?.run()}
-                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
+                  className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
                 >
                   <Signature className='size-3.75' />
                   eSignature
                 </button>
-                <button
+                {/* <button
                   onClick={() => editor?.chain()?.focus()?.toggleCodeBlock()?.run()}
                   className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded rounded-bl-md rounded-br-md hover:bg-gray-100 cursor-pointer'
                 >
                   <Paperclip className='size-3.75' />
                   Attach file
-                </button>
+                </button> */}
               </div>
             </div>
             <div className='relative group'>
