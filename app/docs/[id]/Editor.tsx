@@ -90,7 +90,13 @@ const Editor = ({ user, documentId }: { user: CollabUser; documentId: string }) 
       }),
       CollaborationCaret.configure({
         provider,
+        // `id` isn't used by the caret extension itself, but it rides along
+        // in the same awareness "user" field CollabPresence.tsx reads, so it
+        // can tell two browser tabs/sessions of the SAME account apart from
+        // two different people (Yjs gives every connection its own
+        // clientId, even for the same logged-in user).
         user: {
+          id: user.id,
           name: user.displayName,
           color: user.color,
         },

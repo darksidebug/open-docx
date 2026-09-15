@@ -5,6 +5,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 
 interface PresenceUser {
   clientId: number;
+  id: string | number;
   name: string;
   color: string;
 }
@@ -21,14 +22,20 @@ export default function CollabPresence() {
       const states = collabProvider.awareness?.getStates();
       if (!states) return;
 
-      const next: PresenceUser[] = [];
+      // Keyed by the account id (not clientId): the same logged-in user
+      // opening the doc in a second tab/browser gets its own Yjs clientId,
+      // but should still only show up once in the toolbar.
+      const byUserId = new Map<string | number, PresenceUser>();
       states.forEach((state: Record<string, unknown>, clientId: number) => {
-        const user = state?.user as { name: string; color: string } | undefined;
+        const user = state?.user as { id?: string | number; name: string; color: string } | undefined;
         if (user) {
-          next.push({ clientId, name: user.name, color: user.color });
+          const dedupeKey = user.id ?? clientId;
+          if (!byUserId.has(dedupeKey)) {
+            byUserId.set(dedupeKey, { clientId, id: dedupeKey, name: user.name, color: user.color });
+          }
         }
       });
-      setUsers(next);
+      setUsers(Array.from(byUserId.values()));
     };
 
     const handleStatus = ({ status }: { status: string }) => {
@@ -52,9 +59,9 @@ export default function CollabPresence() {
       <div className="flex -space-x-2">
         {users.map((user) => (
           <div
-            key={user.clientId}
+            key={user.id}
             title={user.name}
-            className="flex size-7 items-center justify-center rounded-full border-2 border-white text-[11px] font-medium text-white shadow-sm"
+            className="flex size-7 items-center justify-center rounded-full border-2 border-[#F9FBFD] text-[11px] font-medium text-white shadow-sm"
             style={{ backgroundColor: user.color }}
           >
             {user.name?.[0]?.toUpperCase() ?? '?'}
