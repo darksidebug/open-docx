@@ -263,7 +263,15 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
               Enter your name
             </span>
           )}
-          <NodeViewContent as="div" className="min-h-[1.2em] w-full text-center text-[13px] outline-none" />
+          <NodeViewContent
+            as="div"
+            // NodeViewContent doesn't set contentEditable itself — without
+            // this, it inherits `false` from the wrapping div above (which
+            // needs to stay non-editable for the image/buttons/caption
+            // around it), so nothing could be typed here at all.
+            contentEditable
+            className="min-h-[1.2em] w-full text-center text-[13px] outline-none"
+          />
         </div>
 
         {/* Fixed caption */}
