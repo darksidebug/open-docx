@@ -134,7 +134,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
     <NodeViewWrapper as="div" style={getContainerStyle()} className="my-4 group">
       <div
         style={{ width }}
-        className={`relative rounded border-2 border-dashed bg-white/80 p-1.5 ${
+        className={`relative rounded border-2 border-dashed bg-white p-1.5 ${
           isActive ? "border-blue-400" : "border-transparent"
         }`}
         // Everything in this block is decorative chrome, not editable
@@ -146,14 +146,14 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
       >
         {/* Hover/selected toolbar */}
         <div
-          className={`absolute -top-7 left-0 flex items-center gap-x-1 rounded-md border border-gray-200 bg-white p-1 shadow-lg transition-opacity ${
+          className={`absolute z-20 -top-7 left-0 flex items-center gap-x-1 rounded-md border border-gray-200 bg-white p-1 shadow-lg transition-opacity ${
             isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "left" })}
-            className={`rounded p-1.25 hover:bg-gray-100 ${alignment === "left" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            className={`rounded p-1.25 hover:bg-zinc-200 ${alignment === "left" ? "text-blue-500 bg-zinc-200" : "text-gray-600"}`}
             title="Align Left"
           >
             <AlignLeft className="size-3.5" />
@@ -161,7 +161,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "center" })}
-            className={`rounded p-1.25 hover:bg-gray-100 ${alignment === "center" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            className={`rounded p-1.25 hover:bg-zinc-200 ${alignment === "center" ? "text-blue-500 bg-zinc-200" : "text-gray-600"}`}
             title="Align Center"
           >
             <AlignCenter className="size-3.5" />
@@ -169,7 +169,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => updateAttributes({ alignment: "right" })}
-            className={`rounded p-1.25 hover:bg-gray-100 ${alignment === "right" ? "text-blue-500 bg-gray-100" : "text-gray-600"}`}
+            className={`rounded p-1.25 hover:bg-zinc-200 ${alignment === "right" ? "text-blue-500 bg-zinc-200" : "text-gray-600"}`}
             title="Align Right"
           >
             <AlignRight className="size-3.5" />
@@ -178,7 +178,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => setShowPad(true)}
-            className="rounded p-1.25 text-gray-600 hover:bg-gray-100"
+            className="rounded p-1.25 text-gray-600 hover:bg-zinc-200"
             title={src ? "Re-draw" : "Draw"}
           >
             <PenLine className="size-3.5" />
@@ -186,7 +186,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded p-1.25 text-gray-600 hover:bg-gray-100"
+            className="rounded p-1.25 text-gray-600 hover:bg-zinc-200"
             title={src ? "Replace with an uploaded image" : "Upload an image"}
           >
             <Upload className="size-3.5" />
@@ -211,18 +211,20 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
         />
 
         {/* Signature image area */}
-        <div style={{ height }} className='relative z-2 overflow-hidden'>
+        <div style={{ height }} className='relative z-2 overflow-hidden bg-white'>
           {src ? (
-            // <div >
-              <img
-                src={src}
-                alt="Signature"
-                className="size-full object-contain cursor-move"
-                style={{ objectPosition: `calc(50% + ${imageX}px) calc(50% + ${imageY}px)` }}
-                draggable={false}
-                onPointerDown={handleImageDragStart}
-              />
-            // </div>
+            <img
+              src={src}
+              alt="Signature"
+              className="size-full object-contain cursor-move"
+              style={{ 
+                objectPosition: `calc(50% + ${imageX}px) calc(50% + ${imageY}px)`, 
+                mixBlendMode: 'multiply',
+                filter: 'contrast(150%) brightness(110%)' // Forces light grey background to pure white
+              }}
+              draggable={false}
+              onPointerDown={handleImageDragStart}
+            />
           ) : (
             <div className="flex size-full flex-col items-center justify-center gap-y-1 text-gray-400">
               <div className="flex items-center gap-x-3">
@@ -270,7 +272,7 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
             the editor's own toolbar/shortcuts. */}
         <div className="relative z-1 border-b border-gray-500 pb-0.5">
           {isNameEmpty && (
-            <span className="pointer-events-none absolute inset-0 text-center text-[13px] text-gray-400">
+            <span className="pointer-events-none absolute inset-0 text-center text-gray-400">
               Enter your name
             </span>
           )}
@@ -281,12 +283,12 @@ const ESignatureViewer: React.FC<NodeViewProps> = (props) => {
             // needs to stay non-editable for the image/buttons/caption
             // around it), so nothing could be typed here at all.
             contentEditable
-            className="min-h-[1.2em] w-full text-center text-[13px] outline-none bg-transparent"
+            className="min-h-[1.2em] w-full text-center outline-none bg-transparent"
           />
         </div>
 
         {/* Fixed caption */}
-        <div className="mt-1 text-center text-[10px] text-gray-500">Name and Signature</div>
+        <div className="mt-1 text-center text-gray-500">Name and e-Signature</div>
 
         {showPad && <SignaturePad onSave={handleSaveSignature} onCancel={() => setShowPad(false)} />}
       </div>

@@ -61,7 +61,7 @@ export default function CollabPresence() {
           <div
             key={user.id}
             title={user.name}
-            className="flex size-7 items-center justify-center rounded-full border-2 border-[#F9FBFD] text-[11px] font-medium text-white shadow-sm"
+            className="flex size-9 items-center justify-center rounded-full pt-px border-2 border-[#F9FBFD] font-medium text-white"
             style={{ backgroundColor: user.color }}
           >
             {user.name?.[0]?.toUpperCase() ?? '?'}

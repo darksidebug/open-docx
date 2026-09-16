@@ -250,13 +250,13 @@ const ToolbarMenu = () => {
                     onChange={handleDocxUpload}
                   />
                 </label>
-                <button
+                {/* <button
                   onClick={() => window.print()}
                   className='w-full flex items-center gap-x-2 text-left px-2.5 py-1 rounded hover:bg-gray-100 cursor-pointer'
                 >
                   <Copy className='size-3.75' />
                   Make a copy
-                </button>
+                </button> */}
                 <div className="h-px border-b border-gray-200 w-full" />
                 <button
                   onClick={() => window.print()}
