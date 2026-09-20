@@ -584,20 +584,57 @@ body {
 
   .harper-lint-spelling {
     text-decoration: underline wavy #e5484d;
-    background-color: #e5484d20;
+    background-color: #ffd8da;
     text-decoration-skip-ink: none;
+
+    &.harper-kind-typo {
+      text-decoration: underline wavy #f5222d;
+      background-color: #ffa5aa;
+      text-decoration-skip-ink: none;
+    }
   }
 
   .harper-lint-grammar {
     text-decoration: underline wavy #3b82f6;
-    background-color: #3b82f650;
+    background-color: #ccdfff;
     text-decoration-skip-ink: none;
+
+    &.harper-kind-agreement {
+      text-decoration: underline wavy #2fab40;
+      background-color: #befec7;
+      text-decoration-skip-ink: none;
+    }
   }
 
   .harper-lint-suggestion {
     text-decoration: underline wavy #2fab40;
-    background-color: #48e55d50;
+    background-color: #befec7;
     text-decoration-skip-ink: none;
+
+    &.harper-kind-repetition {
+      text-decoration: underline wavy #f28212;
+      background-color: #ffdab5;
+      text-decoration-skip-ink: none;
+    }
+
+    &.harper-kind-style {
+      text-decoration: underline wavy #e9e907;
+      background-color: #fcfcaf;
+      text-decoration-skip-ink: none;
+    }
+
+    &.harper-kind-word-choice {
+      text-decoration: underline wavy #3b82f6;
+      background-color: #ccdfff;
+      text-decoration-skip-ink: none;
+    }
+
+    &.harper-kind-formatting,
+    &.harper-kind-miscellaneous {
+      text-decoration: underline wavy #07cbe9;
+      background-color: #bdf2fa;
+      text-decoration-skip-ink: none;
+    }
   }
 
   

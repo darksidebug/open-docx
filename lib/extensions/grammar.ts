@@ -220,7 +220,9 @@ function tierForLintKind(kind: string): LintTier {
   return LINT_KIND_TIER[kind] ?? 'grammar'
 }
 
-// Distinct swatch per category, for the Problems panel's dots/chips.
+// Distinct swatch per category, for the Problems panel's dots/chips and
+// the popup's category label — applied as inline style (this is the part
+// that was already working; kept exactly as-is).
 const LINT_KIND_COLOR: Record<string, string> = {
   Spelling: '#e5484d',
   Typo: '#f5222d',
@@ -231,13 +233,13 @@ const LINT_KIND_COLOR: Record<string, string> = {
   Malapropism: '#fa8c16',
   Eggcorn: '#a0d911',
   Grammar: '#1890ff',
-  Style: '#40a9ff',
+  Style: '#e9e907',
   Enhancement: '#36cfc9',
   Readability: '#597ef7',
   Redundancy: '#9254de',
   Repetition: '#ad6800',
   Punctuation: '#fa541c',
-  Formatting: '#2f54eb',
+  Formatting: '#07cbe9',
   WordChoice: '#1890ff',
   Usage: '#69c0ff',
   Regionalism: '#b37feb',
@@ -246,6 +248,41 @@ const LINT_KIND_COLOR: Record<string, string> = {
 
 function colorForLintKind(kind: string): string {
   return LINT_KIND_COLOR[kind] ?? '#8c8c8c'
+}
+
+// Converts a Harper category name into a CSS class, e.g. "WordChoice" ->
+// "harper-kind-word-choice", "BoundaryError" -> "harper-kind-boundary-error".
+// Used as the fallback for any category that doesn't have its own
+// dedicated option below. Applied ALONGSIDE the inline color above, not
+// instead of it — so styling still works out of the box, and this class
+// gives you a CSS hook to add borders/icons/etc. on top.
+function classNameForLintKind(kind: string): string {
+  const slug = kind
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+  return `harper-kind-${slug}`
+}
+
+// Checks the four explicitly-configurable category class names (set via
+// addOptions/.configure()) first; anything else falls back to the
+// auto-generated slug above. This is what actually gets applied to
+// elements — see usage in the popup and Problems panel below.
+function resolveKindClassName(
+  kind: string,
+  options: { miscellaneousClassName: string; typoClassName: string; wordChoiceClassName: string; styleClassName: string },
+): string {
+  switch (kind) {
+    case 'Miscellaneous':
+      return options.miscellaneousClassName
+    case 'Typo':
+      return options.typoClassName
+    case 'WordChoice':
+      return options.wordChoiceClassName
+    case 'Style':
+      return options.styleClassName
+    default:
+      return classNameForLintKind(kind)
+  }
 }
 
 // ---------------------------------------------------------------
@@ -308,6 +345,7 @@ function openSuggestionPopup(
   rect: PopupRect,
   lint: HarperLintRecord,
   sourceText: string,
+  categoryClassName: string,
   onApply: (suggestionIndex: number) => void,
   onChanged: () => void,
 ) {
@@ -318,7 +356,7 @@ function openSuggestionPopup(
   popupEl.setAttribute('role', 'dialog')
 
   const categoryEl = document.createElement('div')
-  categoryEl.className = 'harper-suggestion-category'
+  categoryEl.className = `harper-suggestion-category ${categoryClassName}`
   categoryEl.style.color = colorForLintKind(lint.kind)
   categoryEl.textContent = lint.kind
   popupEl.appendChild(categoryEl)
@@ -431,6 +469,18 @@ export interface HarperGrammarOptions {
   /** CSS class for optional improvements (Style, Redundancy, WordChoice, etc.).
    * Style: soft background highlight, no underline. */
   suggestionClassName: string
+  /** CSS class added to Miscellaneous-category dots/labels (Problems panel + popup),
+   * alongside the existing inline color. Default: 'harper-kind-miscellaneous'. */
+  miscellaneousClassName: string
+  /** CSS class added to Typo-category dots/labels, alongside the existing
+   * inline color. Default: 'harper-kind-typo'. */
+  typoClassName: string
+  /** CSS class added to WordChoice-category dots/labels, alongside the
+   * existing inline color. Default: 'harper-kind-word-choice'. */
+  wordChoiceClassName: string
+  /** CSS class added to Style-category dots/labels, alongside the
+   * existing inline color. Default: 'harper-kind-style'. */
+  styleClassName: string
 }
 
 export interface HarperGrammarStorage {
@@ -439,6 +489,11 @@ export interface HarperGrammarStorage {
    * getStructuredLintConfig(), setLintConfig(), setDialect(),
    * loadWeirpackFromBlob(), toTitleCase(), etc. Returns null during SSR. */
   getLinter: () => Promise<WorkerLinter | null>
+  /** Resolves the CSS class for a given Harper category, checking the
+   * four configurable options (miscellaneousClassName, typoClassName,
+   * wordChoiceClassName, styleClassName) first, falling back to an
+   * auto-generated class for every other category. */
+  classNameForKind: (kind: string) => string
 }
 
 export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGrammarStorage>({
@@ -450,6 +505,10 @@ export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGramma
       spellingClassName: 'harper-lint-spelling',
       grammarClassName: 'harper-lint-grammar',
       suggestionClassName: 'harper-lint-suggestion',
+      miscellaneousClassName: 'harper-kind-miscellaneous',
+      typoClassName: 'harper-kind-typo',
+      wordChoiceClassName: 'harper-kind-word-choice',
+      styleClassName: 'harper-kind-style',
     }
   },
 
@@ -459,6 +518,7 @@ export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGramma
         await ensureLinterReady()
         return linter
       },
+      classNameForKind: (kind: string) => resolveKindClassName(kind, this.options),
     }
   },
 
@@ -506,7 +566,8 @@ export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGramma
   },
 
   addProseMirrorPlugins() {
-    const { debounce, spellingClassName, grammarClassName, suggestionClassName } = this.options
+    const options = this.options
+    const { debounce, spellingClassName, grammarClassName, suggestionClassName } = options
     const editor = this.editor
     let timeout: ReturnType<typeof setTimeout> | null = null
 
@@ -545,8 +606,9 @@ export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGramma
               rect,
               lint,
               pluginState.sourceText,
+              editor.storage.harperGrammar.classNameForKind(lint.kind),
               suggestionIndex => editor.commands.applyHarperSuggestion(lintIndex, suggestionIndex),
-              () => (editorView as any).__harperScheduleLint?.(0),
+              () => (view as any).__harperScheduleLint?.(0),
             )
             return false
           },
@@ -598,10 +660,15 @@ export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGramma
                   : tier === 'suggestion'
                     ? suggestionClassName
                     : grammarClassName
+              // The per-category class (harper-kind-*, or one of the four
+              // configurable ones) goes on the underline span too, not just
+              // the Problems panel / popup — so you can target a specific
+              // category's underline in CSS, on top of its tier styling.
+              const kindClassName = resolveKindClassName(kind, options)
 
               decorations.push(
                 Decoration.inline(from, to, {
-                  class: tierClassName,
+                  class: `${tierClassName} ${kindClassName}`,
                   title: rawLint.message(),
                 }),
               )
@@ -689,6 +756,7 @@ export function createHarperProblemsPanel(editor: Editor): HarperProblemsPanel {
       { left: coords.left, top: coords.top, bottom: coords.bottom },
       lint,
       sourceText,
+      editor.storage.harperGrammar.classNameForKind(lint.kind),
       suggestionIndex => editor.commands.applyHarperSuggestion(lintIndex, suggestionIndex),
       () => (editor.view as any).__harperScheduleLint?.(0),
     )
@@ -723,7 +791,7 @@ export function createHarperProblemsPanel(editor: Editor): HarperProblemsPanel {
       const chip = document.createElement('span')
       chip.className = 'harper-problems-chip'
       const dot = document.createElement('span')
-      dot.className = 'harper-problems-dot'
+      dot.className = `harper-problems-dot ${editor.storage.harperGrammar.classNameForKind(kind)}`
       dot.style.backgroundColor = colorForLintKind(kind)
       chip.appendChild(dot)
       chip.append(`${kind} ${count}`)
@@ -741,7 +809,7 @@ export function createHarperProblemsPanel(editor: Editor): HarperProblemsPanel {
       row.className = 'harper-problems-row'
 
       const dot = document.createElement('span')
-      dot.className = 'harper-problems-dot'
+      dot.className = `harper-problems-dot ${editor.storage.harperGrammar.classNameForKind(lint.kind)}`
       dot.style.backgroundColor = colorForLintKind(lint.kind)
       row.appendChild(dot)
 
