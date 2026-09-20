@@ -669,7 +669,6 @@ export const HarperGrammar = Extension.create<HarperGrammarOptions, HarperGramma
               decorations.push(
                 Decoration.inline(from, to, {
                   class: `${tierClassName} ${kindClassName}`,
-                  title: rawLint.message(),
                 }),
               )
               lintRecords.push({
