@@ -581,7 +581,56 @@ body {
     user-select: none;
     white-space: nowrap;
   }
+
+  .harper-lint-spelling {
+    text-decoration: underline wavy #e5484d;
+    background-color: #e5484d20;
+    text-decoration-skip-ink: none;
+  }
+
+  .harper-lint-grammar {
+    text-decoration: underline wavy #3b82f6;
+    background-color: #3b82f650;
+    text-decoration-skip-ink: none;
+  }
+
+  .harper-lint-suggestion {
+    text-decoration: underline wavy #2fab40;
+    background-color: #48e55d50;
+    text-decoration-skip-ink: none;
+  }
+
+  
 }
+
+.harper-suggestion-popup {
+  background: #1a1a1a; color: #fff; border-radius: 6px; padding: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2); max-width: 280px; font-size: 13px;
+}
+.harper-suggestion-category { font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 6px; }
+.harper-suggestion-message { padding: 4px 6px; margin-bottom: 4px; }
+.harper-suggestion-list, .harper-suggestion-actions { display: flex; flex-direction: column; gap: 2px; }
+.harper-suggestion-actions { margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 4px; }
+.harper-suggestion-button, .harper-suggestion-action-button {
+  text-align: left; background: rgba(255,255,255,0.1); color: #fff; border: none;
+  border-radius: 4px; padding: 6px 8px; cursor: pointer; font: inherit;
+}
+.harper-suggestion-button:hover, .harper-suggestion-action-button:hover { background: rgba(255,255,255,0.2); }
+
+.harper-problems-panel { font-size: 13px; }
+.harper-problems-header { padding: 12px; border-bottom: 1px solid #eee; }
+.harper-problems-title { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.harper-problems-count { background: #d4380d; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
+.harper-problems-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.harper-problems-chip { display: flex; align-items: center; gap: 4px; color: #666; font-size: 12px; }
+.harper-problems-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.harper-problems-list { display: flex; flex-direction: column; }
+.harper-problems-row {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 10px 12px; border: none; border-bottom: 1px solid #f0f0f0; background: #fff;
+  cursor: pointer; font: inherit; font-weight: 600;
+}
+.harper-problems-row:hover { background: #fafafa; }
 
 /* Force browsers to render backgrounds, shadows, and custom colors in PDF/Print */
 @media print {

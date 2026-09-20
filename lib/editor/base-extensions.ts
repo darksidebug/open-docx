@@ -17,6 +17,7 @@ import { LineHeightExtension } from '@/lib/extensions/line-height';
 import { PageBreak } from '@/lib/extensions/page-break';
 import { VerticalAlign } from '@/lib/extensions/vertical-align';
 import { ESignature } from '@/lib/extensions/esignature';
+import { HarperGrammar } from '../extensions/grammar';
 
 /**
  * The full set of content extensions shared by every Tiptap instance in the
@@ -42,6 +43,7 @@ export function getBaseExtensions({ undoRedo = true }: { undoRedo?: boolean } = 
       // default history enabled, there's no literal `true`.
       ...(undoRedo ? {} : { undoRedo: false }),
     }),
+    HarperGrammar,
     VerticalAlign,
     PageBreak,
     LineHeightExtension,

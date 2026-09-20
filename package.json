@@ -57,6 +57,7 @@
     "file-saver": "^2.0.5",
     "fs": "^0.0.1-security",
     "happy-dom": "^20.14.0",
+    "harper.js": "^2.10.0",
     "jose": "^6.2.12",
     "jszip": "^3.10.1",
     "lucide-react": "^1.38.0",
