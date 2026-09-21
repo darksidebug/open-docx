@@ -40,7 +40,9 @@ interface EditorState {
   documentName: string,
   setDocumentName: (documentName: string) => void;
   fontSizes: number[];
-  typographies: { label: string, value: number }[]
+  typographies: { label: string, value: number }[];
+  isChecking: boolean,
+  setIsChecking: (isChecking: boolean) => void
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -316,4 +318,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setEnableRuler: (enableRuler: boolean) => set({ enableRuler }),
   enableToolbar: true,
   setEnableToolbar: (enableToolbar: boolean) => set({ enableToolbar }),
+  isChecking: false,
+  setIsChecking: (isChecking: boolean) => set({ isChecking }),
 }));

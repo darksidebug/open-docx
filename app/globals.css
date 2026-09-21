@@ -604,12 +604,24 @@ body {
       background-color: #befec7;
       text-decoration-skip-ink: none;
     }
+
+    &.harper-kind-capitalization {
+      text-decoration: underline wavy #722ed1;
+      background-color: #e4d1ff;
+      text-decoration-skip-ink: none;
+    }
   }
 
   .harper-lint-suggestion {
     text-decoration: underline wavy #2fab40;
     background-color: #befec7;
     text-decoration-skip-ink: none;
+
+    &.harper-kind-readability {
+      text-decoration: none;
+      background-color: transparent;
+      text-decoration-skip-ink: none;
+    }
 
     &.harper-kind-repetition {
       text-decoration: underline wavy #f28212;
@@ -633,6 +645,12 @@ body {
     &.harper-kind-miscellaneous {
       text-decoration: underline wavy #07cbe9;
       background-color: #bdf2fa;
+      text-decoration-skip-ink: none;
+    }
+
+    &.harper-kind-punctuation {
+      text-decoration: underline wavy #fa541c;
+      background-color: #ffd0c0;
       text-decoration-skip-ink: none;
     }
   }
@@ -668,6 +686,70 @@ body {
   cursor: pointer; font: inherit; font-weight: 600;
 }
 .harper-problems-row:hover { background: #fafafa; }
+
+.grammar-compare-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.grammar-compare-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 560px;
+  width: 90%;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.grammar-compare-header {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.grammar-compare-body {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 16px;
+}
+.grammar-compare-removed {
+  background: #ffebe9;
+  color: #cf222e;
+  text-decoration: line-through;
+}
+.grammar-compare-added {
+  background: #e6ffec;
+  color: #1a7f37;
+}
+.grammar-compare-note {
+  color: #666;
+  font-style: italic;
+}
+.grammar-compare-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.grammar-compare-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+.grammar-compare-reject {
+  background: #f0f0f0;
+  color: #333;
+}
+.grammar-compare-accept {
+  background: #1a7f37;
+  color: #fff;
+}
 
 /* Force browsers to render backgrounds, shadows, and custom colors in PDF/Print */
 @media print {

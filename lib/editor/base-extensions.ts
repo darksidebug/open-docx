@@ -17,7 +17,9 @@ import { LineHeightExtension } from '@/lib/extensions/line-height';
 import { PageBreak } from '@/lib/extensions/page-break';
 import { VerticalAlign } from '@/lib/extensions/vertical-align';
 import { ESignature } from '@/lib/extensions/esignature';
-import { HarperGrammar } from '../extensions/grammar';
+import { HarperGrammar } from '../extensions/harper';
+import { OllamaGrammarCheck } from '../extensions/gnokit-grammar';
+import { useEditorStore } from '@/store/useEditorStore';
 
 /**
  * The full set of content extensions shared by every Tiptap instance in the
@@ -30,6 +32,8 @@ import { HarperGrammar } from '../extensions/grammar';
  * own Yjs document/provider.
  */
 export function getBaseExtensions({ undoRedo = true }: { undoRedo?: boolean } = {}) {
+  const { setIsChecking } = useEditorStore();
+
   return [
     StarterKit.configure({
       codeBlock: {
@@ -44,6 +48,10 @@ export function getBaseExtensions({ undoRedo = true }: { undoRedo?: boolean } = 
       ...(undoRedo ? {} : { undoRedo: false }),
     }),
     HarperGrammar,
+    OllamaGrammarCheck.configure({
+      timeout: 45000,
+      onCheckingChange: setIsChecking
+    }),
     VerticalAlign,
     PageBreak,
     LineHeightExtension,

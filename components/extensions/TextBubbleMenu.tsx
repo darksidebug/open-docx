@@ -26,7 +26,9 @@ import {
   AArrowDown,
   CaseSensitive,
   Underline,
-  Eraser
+  Eraser,
+  Pencil,
+  Loader
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -46,7 +48,8 @@ export const TextBubbleMenu = () => {
     colorSet,
     typographies,
     applyCaseChange,
-    changeFontSizeStep
+    changeFontSizeStep,
+    isChecking
   } = useEditorStore();
   const [isOpened, setIsOpened] = useState(false);
   const [isFontSwatchOpened, setIsFontSwatchOpened] = useState(false);
@@ -67,6 +70,8 @@ export const TextBubbleMenu = () => {
     return 0;
   };
 
+  if (!editor) return;
+
   return (
     <div
       className={cn(
@@ -79,7 +84,7 @@ export const TextBubbleMenu = () => {
           value={editor?.getAttributes('textStyle')?.fontSize?.replace('px', '') || '13'}
           onChange={handleSetFontSize}
           items={fontSizes}
-          className='w-12'
+          className='w-14'
           title='Font Size'
         />
         <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mr-0.5 ml-1" />
@@ -97,7 +102,7 @@ export const TextBubbleMenu = () => {
             }
           }}
           items={typographies}
-          className='w-25.5'
+          className='w-30'
           title="Styles / Headings"
         />
         <button
@@ -334,6 +339,15 @@ export const TextBubbleMenu = () => {
           <IndentDecrease className="size-3.5" />
         </button>
         <div className="w-px h-4 border-l border-zinc-200 dark:bg-zinc-800 mx-0.5" />
+        <button
+          disabled={isChecking}
+          type="button"
+          onClick={() => editor?.commands.checkGrammar()}
+          className="p-1.25 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer disabled:hover:bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Grammar Check"
+        >
+          {isChecking ? <Loader className="size-3.25" /> : <Pencil className="size-3.25" />}
+        </button>
         <div className='relative group'>
           <button
             className="p-1.25 rounded hover:bg-zinc-200 group-hover:bg-zinc-200 dark:hover:bg-zinc-800"
